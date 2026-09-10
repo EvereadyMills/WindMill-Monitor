@@ -3,7 +3,7 @@ name: Windmill Monitor
 on:
   schedule:
     - cron: '*/5 * * * *' # ஒவ்வொரு 5 நிமிடத்திற்கு ஒருமுறை ஆட்டோமேட்டிக்காக ரன் ஆகும்
-  workflow_dispatch: # தேவைப்பட்டால் நீங்களே கைமுறையாகவும் (Manual-ஆகவும்) ரன் செய்து கொள்ளலாம்
+  workflow_dispatch: # தேவைப்பட்டால் நீங்களே கைமுறையாகவும் ரன் செய்து கொள்ளலாம்
 
 jobs:
   run-monitor:
@@ -16,7 +16,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
