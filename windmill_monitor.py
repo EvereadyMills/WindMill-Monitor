@@ -42,53 +42,42 @@ try:
     
     time.sleep(8) # Wait for dashboard to load
     
-    # Continuous monitoring loop running every 10 seconds
-    while True:
+    current_states = {}
+    turbine_rows = driver.find_elements(By.XPATH, "//table//tr[position()>1]")
+    
+    for row in turbine_rows:
         try:
-            driver.refresh() # Refresh the page
-            time.sleep(4)    # Wait for data to load
-            
-            current_states = {}
-            turbine_rows = driver.find_elements(By.XPATH, "//table//tr[position()>1]")
-            
-            for row in turbine_rows:
-                try:
-                    cols = row.find_elements(By.TAG_NAME, "td")
-                    if len(cols) >= 2:
-                        htsc_number = cols[0].text.strip()
-                        status = cols[1].text.strip().lower()
-                        if htsc_number:
-                            current_states[htsc_number] = status
-                except:
-                    continue
+            cols = row.find_elements(By.TAG_NAME, "td")
+            if len(cols) >= 2:
+                htsc_number = cols[0].text.strip()
+                status = cols[1].text.strip().lower()
+                if htsc_number:
+                    current_states[htsc_number] = status
+        except:
+            continue
 
-            # Read previous state
-            previous_states = {}
-            if os.path.exists(STATE_FILE):
-                with open(STATE_FILE, "r") as f:
-                    try:
-                        previous_states = json.load(f)
-                    except:
-                        pass
+    # Read previous state
+    previous_states = {}
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            try:
+                previous_states = json.load(f)
+            except:
+                pass
 
-            # Compare changes and send alert
-            if previous_states:
-                for htsc, current_status in current_states.items():
-                    prev_status = previous_states.get(htsc)
-                    if prev_status and prev_status != current_status:
-                        if current_status in ["pause", "stop", "emergency", "battery", "poweroff"]:
-                            send_telegram_alert(htsc, current_status)
+    # Compare changes and send alert
+    if previous_states:
+        for htsc, current_status in current_states.items():
+            prev_status = previous_states.get(htsc)
+            if prev_status and prev_status != current_status:
+                if current_status in ["pause", "stop", "emergency", "battery", "poweroff"]:
+                    send_telegram_alert(htsc, current_status)
 
-            # Save current state
-            with open(STATE_FILE, "w") as f:
-                json.dump(current_states, f)
+    # Save current state
+    with open(STATE_FILE, "w") as f:
+        json.dump(current_states, f)
 
-            print("Check completed. Waiting 10 seconds...")
-            
-        except Exception as inner_e:
-            print("Loop error:", inner_e)
-
-        time.sleep(10) # Wait precisely 10 seconds
+    print("Monitor check completed successfully.")
 
 except Exception as e:
     print("An error occurred:", e)
