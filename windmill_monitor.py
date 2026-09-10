@@ -33,6 +33,7 @@ def send_telegram_alert(status_name, count):
         print("Telegram Error:", e)
 
 try:
+    send_telegram_alert("Test Alert - Working!", 999)
     driver.get(SCADA_URL)
     time.sleep(3)
 
