@@ -11,16 +11,10 @@ SCADA_PASSWORD = os.environ.get("SCADA_PASS")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-STATE_FILE = "counts.json"
+STATE_FILE = "turbine_states.json"
 
-options = webdriver.ChromeOptions()
-options.add_argument("--headless")
-options.add_argument("--no-sandbox")
-options.add_argument("--disable-dev-shm-usage")
-driver = webdriver.Chrome(options=options)
-
-def send_telegram_alert(status_name, count):
-    message = f" எச்சரிக்கை: SCADA நிலையில் மாற்றம் ஏற்பட்டுள்ளது!\n நிலவரம்: *{status_name}* \n எண்ணிக்கை: **{count}**"
+def send_telegram_alert(htsc_number, status):
+    message = f"⚠️ Alert: Status changed!\nHTSC Number : {htsc_number}\nStatus : {status}"
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
@@ -32,50 +26,70 @@ def send_telegram_alert(status_name, count):
     except Exception as e:
         print("Telegram Error:", e)
 
+options = webdriver.ChromeOptions()
+options.add_argument("--headless")
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+driver = webdriver.Chrome(options=options)
+
 try:
-    send_telegram_alert("Test Alert - Working!", 999)
     driver.get(SCADA_URL)
     time.sleep(3)
-
+# TEST Alert
+    send_telegram_alert("⚠️Test Alert: Status changed!\nHTSC Number : \nStatus : ")
     driver.find_element(By.ID, "uname").send_keys(SCADA_USERNAME)
     driver.find_element(By.ID, "password").send_keys(SCADA_PASSWORD)
     driver.find_element(By.NAME, "submit").click()
     
-    time.sleep(8) # டேஷ்போர்ட் லோட் ஆக
+    time.sleep(8) # Wait for dashboard to load
     
-    status_elements = driver.find_elements(By.XPATH, "//div[@class='image_menu']//font")
-    current_counts = {}
-    for elem in status_elements:
-        text = elem.text.strip()
-        if ":" in text:
-            parts = text.split(":")
-            status_name = parts[0].strip()
-            status_count = int(parts[1].strip())
-            current_counts[status_name] = status_count
+    # 10 விநாடிகளுக்கு ஒருமுறை செக் செய்யும் தொடர்ச்சியான லூப்
+    while True:
+        try:
+            driver.refresh() # பக்கத்தை ரெஃப்ரெஷ் செய்தல்
+            time.sleep(4)    # டேட்டா லோட் ஆக காத்திருத்தல்
+            
+            current_states = {}
+            turbine_rows = driver.find_elements(By.XPATH, "//table//tr[position()>1]")
+            
+            for row in turbine_rows:
+                try:
+                    cols = row.find_elements(By.TAG_NAME, "td")
+                    if len(cols) >= 2:
+                        htsc_number = cols[0].text.strip()
+                        status = cols[1].text.strip().lower()
+                        if htsc_number:
+                            current_states[htsc_number] = status
+                except:
+                    continue
 
-    # முந்தைய நிலையை ரீட் செய்தல்
-    previous_counts = {}
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            try:
-                previous_counts = json.load(f)
-            except:
-                pass
+            # Read previous state
+            previous_states = {}
+            if os.path.exists(STATE_FILE):
+                with open(STATE_FILE, "r") as f:
+                    try:
+                        previous_states = json.load(f)
+                    except:
+                        pass
 
-    # மாற்றங்களை ஒப்பிடுதல்
-    if previous_counts:
-        for status, count in current_counts.items():
-            prev_count = previous_counts.get(status, 0)
-            if status != "Running" and count > prev_count:
-                send_telegram_alert(status, count)
-            elif status == "Running" and count < prev_count:
-                send_telegram_alert("Running Decreased", count)
+            # Compare changes and send alert
+            if previous_states:
+                for htsc, current_status in current_states.items():
+                    prev_status = previous_states.get(htsc)
+                    if prev_status and prev_status != current_status:
+                        if current_status in ["pause", "stop", "emergency", "battery", "poweroff"]:
+                            send_telegram_alert(htsc, current_status)
 
-    # தற்போதைய நிலையை சேமித்தல்
-    with open(STATE_FILE, "w") as f:
-        json.dump(current_counts, f)
+            # Save current state
+            with open(STATE_FILE, "w") as f:
+                json.dump(current_states, f)
 
-    print("Monitor check completed successfully.")
+            print("Check completed. Waiting 10 seconds...")
+            
+        except Exception as inner_e:
+            print("Loop error:", inner_e)
+
+        time.sleep(10) # சரியாக 10 விநாடிகள் காத்திருத்தல்
 
 except Exception as e:
     print("An error occurred:", e)
