@@ -1,20 +1,21 @@
 import time
+import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import requests
 
-# 1. SCADA லாகின் விவரங்கள்
+# GitHub Secrets-லிருந்து ரகசியத் தகவல்களை எடுப்பது
 SCADA_URL = "https://www.scadasolution.co.in/scada/scada-login/"
-SCADA_USERNAME = ""
-SCADA_PASSWORD = ""
+SCADA_USERNAME = os.environ.get("SCADA_USER")
+SCADA_PASSWORD = os.environ.get("SCADA_PASS")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# 2. டெலிகிராம் விவரங்கள்
-TELEGRAM_BOT_TOKEN = ""
-TELEGRAM_CHAT_ID = ""  # மைனஸ் குறியுடன் (எ.கா: -100xxxxxxxxxx)
-
-# பிரவுசரைத் திறத்தல்
+# பிரவுசரைத் திறத்தல் (கிளவுட்டில் ஓட --headless மோட் அவசியம்)
 options = webdriver.ChromeOptions()
-# options.add_argument("--headless") # பிரவுசர் தெரியாமல் பின்னணியில் ஓட இதிலுள்ள கமெண்டை நீக்கலாம்
+options.add_argument("--headless")  # கிளவுட்டில் பிரவுசர் தெரியாமல் பின்னணியில் ஓட
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
 driver = webdriver.Chrome(options=options)
 
 def send_telegram_alert(status_name, count):
@@ -26,13 +27,9 @@ def send_telegram_alert(status_name, count):
         "parse_mode": "Markdown"
     }
     try:
-        response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            print(f"Telegram Alert Sent: {status_name} -> {count}")
-        else:
-            print("Telegram Error:", response.text)
+        requests.post(url, json=payload)
     except Exception as e:
-            print("Connection Error:", e)
+        print("Telegram Error:", e)
 
 try:
     driver.get(SCADA_URL)
@@ -44,45 +41,34 @@ try:
     driver.find_element(By.NAME, "submit").click()
     
     print("வெற்றிகரமாக லாகின் செய்யப்பட்டது! விண்டுமில் நிலைகள் கண்காணிக்கப்படுகின்றன...")
-    time.sleep(10) # டேஷ்போர்ட் லோட் ஆக அவகாசம்
+    time.sleep(10)
     
     previous_counts = {}
 
     while True:
         try:
-            # மேல்பகுதியில் உள்ள அனைத்து ஸ்டேட்டஸ் கவுண்ட்டுகளையும் எடுத்தல் (<font> டேக்குகள்)
             status_elements = driver.find_elements(By.XPATH, "//div[@class='image_menu']//font")
-            
             current_counts = {}
             for elem in status_elements:
-                text = elem.text.strip() # எ.கா: "Running:10" அல்லது "Stop:0"
+                text = elem.text.strip()
                 if ":" in text:
                     parts = text.split(":")
-                    status_name = parts[0].strip() # Running, Pause, Stop, Emergency, முதலியவை
-                    status_count = int(parts[1].strip()) # 10, 0, முதலியவை
+                    status_name = parts[0].strip()
+                    status_count = int(parts[1].strip())
                     current_counts[status_name] = status_count
 
-            # முந்தைய நிலையும் தற்போதைய நிலையும் ஒப்பிடுதல்
             if previous_counts:
                 for status, count in current_counts.items():
                     prev_count = previous_counts.get(status, 0)
-                    
-                    # 'Running' தவிர மற்ற ஸ்டேட்டஸ்கள் (Pause, Stop, Emergency, Battery, Power Off) அதிகரித்தால் அலர்ட் அனுப்பும்
                     if status != "Running" and count > prev_count:
-                        print(f"மாற்றம் கண்டறியப்பட்டது: {status} எண்ணிக்கை {prev_count} லிருந்து {count} ஆக உயர்ந்துள்ளது!")
                         send_telegram_alert(status, count)
-                    
-                    # அல்லது Running எண்ணிக்கை குறைந்தாலும் அலர்ட் பெறலாம்
                     elif status == "Running" and count < prev_count:
-                        print(f"Running எண்ணிக்கை குறைந்துள்ளது: {count}")
                         send_telegram_alert("Running Decreased", count)
 
             previous_counts = current_counts
-                
         except Exception as inner_e:
             print("Loop Error:", inner_e)
             
-        # ஒவ்வொரு 60 வினாடிகளுக்கு ஒருமுறை செக் செய்யும்
         time.sleep(60)
 
 except Exception as e:
