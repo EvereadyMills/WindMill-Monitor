@@ -5,12 +5,12 @@ import requests
 
 # 1. SCADA லாகின் விவரங்கள்
 SCADA_URL = "https://www.scadasolution.co.in/scada/scada-login/"
-SCADA_USERNAME = "eveready"
-SCADA_PASSWORD = "ESMPL@123"
+SCADA_USERNAME = ""
+SCADA_PASSWORD = ""
 
 # 2. டெலிகிராம் விவரங்கள்
-TELEGRAM_BOT_TOKEN = "8970098552:AAFv8vxUVDlaw5gEF_lYyLiO5na0-yEznIc"
-TELEGRAM_CHAT_ID = "-1004427021048"  # மைனஸ் குறியுடன் (எ.கா: -100xxxxxxxxxx)
+TELEGRAM_BOT_TOKEN = ""
+TELEGRAM_CHAT_ID = ""  # மைனஸ் குறியுடன் (எ.கா: -100xxxxxxxxxx)
 
 # பிரவுசரைத் திறத்தல்
 options = webdriver.ChromeOptions()
