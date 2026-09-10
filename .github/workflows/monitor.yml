@@ -17,6 +17,12 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Restore counts cache
+        uses: actions/cache@v4
+        with:
+          path: counts.json
+          key: scada-counts-cache
+
       - name: Install dependencies
         run: |
           pip install selenium requests
