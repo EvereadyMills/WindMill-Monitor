@@ -2,10 +2,13 @@ import os
 import json
 import time
 import traceback
+import requests
+from datetime import datetime
+import pytz
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-import requests
+from selenium.webdriver.common.action_chains import ActionChains
 
 SCADA_LOGIN_URL = "https://www.scadasolution.co.in/scada/scada-login/"
 SCADA_PARKVIEW_URL = "https://www.scadasolution.co.in/scada/scada-parkview/"
@@ -30,7 +33,8 @@ def send_telegram_alert(full_message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
-        "text": full_message
+        "text": full_message,
+        "parse_mode": "Markdown"
     }
     try:
         response = requests.post(url, json=payload)
@@ -70,8 +74,9 @@ try:
 
     current_states = {}
     
-    print("4. Searching Windmill Elements...")
+    print("4. Searching Windmill Elements & Hovering for Data...")
     elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]") or []
+    actions = ActionChains(driver)
     
     for el in elements:
         try:
@@ -79,6 +84,7 @@ try:
             if text.startswith("SF") and len(text) <= 10:
                 htsc_number = text
                 
+                # 1. Detect Status from Background CSS
                 try:
                     bg_color = el.value_of_css_property("background-color")
                     parent = el.find_element(By.XPATH, "./..")
@@ -101,7 +107,38 @@ try:
                 elif "green" in combined_info or "0, 138, 0" in combined_info or "008a00" in combined_info:
                     status = "running"
 
-                current_states[htsc_number] = status
+                # 2. Hover to read Tooltip values
+                actions.move_to_element(el).perform()
+                time.sleep(1)
+
+                ws, kw, rrpm, grpm = "-", "-", "-", "-"
+                try:
+                    tooltips = driver.find_elements(By.XPATH, "//*[contains(text(), 'W/S') or contains(text(), 'KW')]")
+                    for tt in tooltips:
+                        if tt.is_displayed():
+                            lines = tt.text.split("\n")
+                            for line in lines:
+                                if "Status:" in line:
+                                    status = line.split("Status:")[1].strip()
+                                elif "W/S" in line:
+                                    ws = line.split(":")[-1].strip()
+                                elif "KW" in line:
+                                    kw = line.split(":")[-1].strip()
+                                elif "RRPM" in line:
+                                    rrpm = line.split(":")[-1].strip()
+                                elif "GRPM" in line:
+                                    grpm = line.split(":")[-1].strip()
+                            break
+                except Exception as hover_err:
+                    print(f"Hover error for {htsc_number}:", hover_err)
+
+                current_states[htsc_number] = {
+                    "status": status,
+                    "ws": ws,
+                    "kw": kw,
+                    "rrpm": rrpm,
+                    "grpm": grpm
+                }
         except Exception:
             continue
 
@@ -117,25 +154,38 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
-    # Check if any status has changed
+    # Check if status has changed
     state_changed = False
 
     if previous_states:
-        for htsc, current_status in current_states.items():
-            prev_status = previous_states.get(htsc)
-            if prev_status != current_status:
+        for htsc, data in current_states.items():
+            prev = previous_states.get(htsc)
+            prev_status = prev.get("status") if isinstance(prev, dict) else prev
+            if prev_status != data["status"]:
                 state_changed = True
-                print(f"Status change detected for {htsc}: {prev_status} -> {current_status}")
+                print(f"Status change detected for {htsc}: {prev_status} -> {data['status']}")
                 break
     else:
-        # First run initialization
         state_changed = True
 
-    # If status changed (or first run), build single combined message for all machines
-    if state_changed and current_states:
-        msg_lines = []
-        for index, (htsc, status) in enumerate(current_states.items(), start=1):
-            msg_lines.append(f"{index}. Loc.No: {htsc}\n  Status : {status}\n")
+    # IST Time Check for 8:00 AM & 6:00 PM Reports
+    ist = pytz.timezone('Asia/Kolkata')
+    now_ist = datetime.now(ist)
+    is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
+
+    # Send Notification if Status Changed or Scheduled Report Time reached
+    if (state_changed or is_scheduled_report) and current_states:
+        msg_lines = ["```text"]
+        for index, (htsc, val) in enumerate(current_states.items(), start=1):
+            msg_lines.append(
+                f"{index}. Loc.No      : {htsc}\n"
+                f"   Status        : {val['status']}\n"
+                f"   w/s           : {val['ws']}\n"
+                f"   kw            : {val['kw']}\n"
+                f"   RRPM          : {val['rrpm']}\n"
+                f"   GRPM          : {val['grpm']}\n"
+            )
+        msg_lines.append("```")
 
         full_message = "\n".join(msg_lines)
         print("Sending aggregated Telegram notification...")
