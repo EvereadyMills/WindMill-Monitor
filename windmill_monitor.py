@@ -1,29 +1,33 @@
 import os
 import json
 import time
+import traceback
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import requests
 
-# 1. Environment variables check
 SCADA_LOGIN_URL = "https://www.scadasolution.co.in/scada/scada-login/"
 SCADA_PARKVIEW_URL = "https://www.scadasolution.co.in/scada/scada-parkview/"
-SCADA_USERNAME = os.environ.get("SCADA_USER", "")
-SCADA_PASSWORD = os.environ.get("SCADA_PASS", "")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+
+SCADA_USERNAME = os.environ.get("SCADA_USER")
+SCADA_PASSWORD = os.environ.get("SCADA_PASS")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 STATE_FILE = "turbine_states.json"
 
-# Safety Check for missing secrets
+# Credentials Validation
+print(f"Checking Credentials -> Username Loaded: {bool(SCADA_USERNAME)}, Password Loaded: {bool(SCADA_PASSWORD)}")
+
 if not SCADA_USERNAME or not SCADA_PASSWORD:
-    print("❌ ERROR: SCADA_USER or SCADA_PASS environment variable is missing!")
-    print("Please check your GitHub Repository Secrets and Workflow env parameters.")
+    print("❌ ERROR: SCADA_USER or SCADA_PASS is missing in Environment Variables!")
+    print("Please make sure you have added Secrets in GitHub Repository Settings AND configured env in your workflow YAML file.")
+    exit(1)
 
 def send_telegram_alert(htsc_number, status, running_status_summary):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("❌ Telegram token/chat_id missing. Cannot send alert.")
+        print("❌ Telegram token/chat_id missing.")
         return
 
     message = (
@@ -42,7 +46,6 @@ def send_telegram_alert(htsc_number, status, running_status_summary):
     except Exception as e:
         print("Telegram Error:", e)
 
-# Configure Chrome with HD Screen Resolution
 chrome_options = Options()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
@@ -56,7 +59,6 @@ try:
     driver.get(SCADA_LOGIN_URL)
     time.sleep(4)
 
-    # Safely sending keys converting to string
     uname_field = driver.find_element(By.ID, "uname")
     uname_field.clear()
     uname_field.send_keys(str(SCADA_USERNAME))
@@ -74,7 +76,6 @@ try:
     driver.get(SCADA_PARKVIEW_URL)
     time.sleep(8)
     
-    # Extract Overall Running Status Summary from Top Bar
     running_summary = "N/A"
     try:
         summary_els = driver.find_elements(By.XPATH, "//*[contains(text(), 'Running') or contains(text(), 'Stop') or contains(text(), 'Emergency')]")
@@ -91,7 +92,6 @@ try:
 
     current_states = {}
     
-    # Search all turbine elements (containing 'SF')
     print("4. Searching Windmill Elements...")
     elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]") or []
     
@@ -127,10 +127,9 @@ try:
         except Exception:
             continue
 
-    print("Detected Current States from Website:", current_states)
-    print("Summary Count extracted:", running_summary)
+    print("Detected Current States:", current_states)
+    print("Summary Count:", running_summary)
 
-    # Safe Reading of Previous States File
     previous_states = {}
     if os.path.exists(STATE_FILE):
         try:
@@ -139,11 +138,8 @@ try:
                 if isinstance(loaded_data, dict):
                     previous_states = loaded_data
         except Exception as read_err:
-            print("Starting fresh state tracking:", read_err)
+            print("Fresh start:", read_err)
 
-    print("Previous States loaded:", previous_states)
-
-    # Compare Changes & Send Alert
     if previous_states:
         for htsc, current_status in current_states.items():
             prev_status = previous_states.get(htsc)
@@ -159,7 +155,6 @@ try:
                 print(f"Initial non-running status detected for {htsc}: {current_status}")
                 send_telegram_alert(htsc, current_status, running_summary)
 
-    # Save updated states
     if current_states:
         with open(STATE_FILE, "w") as f:
             json.dump(current_states, f, indent=4)
@@ -167,6 +162,7 @@ try:
     print("Monitor execution completed successfully.")
 
 except Exception as e:
-    print("An error occurred during execution:", e)
+    print("An error occurred during execution:")
+    traceback.print_exc()
 finally:
     driver.quit()
