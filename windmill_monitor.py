@@ -14,17 +14,16 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 STATE_FILE = "turbine_states.json"
 
-def send_telegram_alert(htsc_number, status):
-    message = f"⚠️ Alert: Status changed!\nHTSC Number : {htsc_number}\nStatus : {status}"
+def send_telegram_alert(htsc_number, status, summary_counts):
+    message = f"Htsc number : {htsc_number}\nStatus : {status}\nRunning status: {summary_counts}"
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
-        "text": message,
-        "parse_mode": "Markdown"
+        "text": message
     }
     try:
         response = requests.post(url, json=payload)
-        print("Telegram Response:", response.text)
+        print(f"Telegram Response for {htsc_number}:", response.text)
     except Exception as e:
         print("Telegram Error:", e)
 
@@ -49,37 +48,55 @@ try:
     driver.get(SCADA_PARKVIEW_URL)
     time.sleep(6)
     
+    # Extract overall counts from the top menu bar (Running, Pause, Stop, Emergency, etc.)
+    summary_counts = "N/A"
+    try:
+        menu_element = driver.find_element(By.CLASS_NAME, "s_menu")
+        summary_counts = menu_element.text.strip().replace("\n", " | ")
+    except:
+        try:
+            # Fallback if class name differs
+            menu_element = driver.find_element(By.XPATH, "//div[contains(@style, 'height:30px')]")
+            summary_counts = menu_element.text.strip().replace("\n", " | ")
+        except:
+            pass
+
     current_states = {}
-    # Find all turbine elements by looking for text starting with 'SF'
     elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]")
     
-    if elements:
-        for el in elements:
-            try:
-                text = el.text.strip()
-                if text.startswith("SF") and len(text) < 15:
-                    htsc_number = text
-                    
-                    # Check background color or attributes of the element or its parent to determine status
-                    class_attr = el.get_attribute("class") or ""
-                    parent_el = el.find_element(By.XPATH, "./..")
-                    parent_class = parent_el.get_attribute("class") or ""
-                    parent_style = parent_el.get_attribute("style") or ""
-                    
-                    combined_info = (class_attr + " " + parent_class + " " + parent_style).lower()
-                    
-                    # Default status is running, but if it indicates stop/emergency/red/etc.
+    for el in elements:
+        try:
+            text = el.text.strip()
+            if text.startswith("SF") and len(text) < 15:
+                htsc_number = text
+                
+                style_attr = el.get_attribute("style") or ""
+                parent_el = el.find_element(By.XPATH, "./..")
+                parent_style = parent_el.get_attribute("style") or ""
+                
+                combined_style = (style_attr + " " + parent_style).lower()
+                
+                # Identify status based on color codes
+                status = "running"
+                if "e60000" in combined_style or "red" in combined_style or "emergency" in combined_style:
+                    status = "emergency"
+                elif "e6cc00" in combined_style or "stop" in combined_style or "yellow" in combined_style:
+                    status = "stop"
+                elif "7c9fae" in combined_style or "pause" in combined_style:
+                    status = "pause"
+                elif "6ec1fa" in combined_style or "power off" in combined_style or "poweroff" in combined_style:
+                    status = "poweroff"
+                elif "black" in combined_style or "battery" in combined_style:
+                    status = "battery"
+                elif "008a00" in combined_style or "green" in combined_style or "run" in combined_style:
                     status = "running"
-                    if any(keyword in combined_info for keyword in ["stop", "emergency", "pause", "fault", "trip", "off", "red", "danger"]):
-                        status = "stop"
-                    elif "green" in combined_info or "run" in combined_info:
-                        status = "running"
                     
-                    current_states[htsc_number] = status
-            except:
-                continue
+                current_states[htsc_number] = status
+        except:
+            continue
 
-    print("Scraped Current States:", current_states)
+    print("Detected Current States:", current_states)
+    print("Summary Counts:", summary_counts)
 
     # Read previous state
     previous_states = {}
@@ -90,17 +107,15 @@ try:
             except:
                 pass
 
-    print("Previous States from file:", previous_states)
-
-    # Compare changes and send alert
+    # Compare and send alert for ANY status change
     if previous_states:
         for htsc, current_status in current_states.items():
             prev_status = previous_states.get(htsc)
             if prev_status and prev_status != current_status:
-                if current_status in ["pause", "stop", "emergency", "battery", "poweroff"]:
-                    send_telegram_alert(htsc, current_status)
+                print(f"Status changed for {htsc}: {prev_status} -> {current_status}. Sending alert.")
+                send_telegram_alert(htsc, current_status, summary_counts)
     else:
-        print("No previous states found for comparison (First run initialization).")
+        print("No previous states found. Initializing states.")
 
     # Save current state
     with open(STATE_FILE, "w") as f:
