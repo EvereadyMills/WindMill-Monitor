@@ -18,31 +18,23 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "turbine_states.json"
 
 # Credentials Validation
-print(f"Checking Credentials -> Username Loaded: {bool(SCADA_USERNAME)}, Password Loaded: {bool(SCADA_PASSWORD)}")
-
 if not SCADA_USERNAME or not SCADA_PASSWORD:
     print("❌ ERROR: SCADA_USER or SCADA_PASS is missing in Environment Variables!")
-    print("Please make sure you have added Secrets in GitHub Repository Settings AND configured env in your workflow YAML file.")
     exit(1)
 
-def send_telegram_alert(htsc_number, status, running_status_summary):
+def send_telegram_alert(full_message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("❌ Telegram token/chat_id missing.")
         return
 
-    message = (
-        f"Htsc number : {htsc_number}\n"
-        f"Status : {status}\n"
-        f"Running status: {running_status_summary}"
-    )
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
-        "text": message
+        "text": full_message
     }
     try:
         response = requests.post(url, json=payload)
-        print(f"Telegram API Response for {htsc_number}:", response.text)
+        print("Telegram API Response:", response.text)
     except Exception as e:
         print("Telegram Error:", e)
 
@@ -75,20 +67,6 @@ try:
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
     time.sleep(8)
-    
-    running_summary = "N/A"
-    try:
-        summary_els = driver.find_elements(By.XPATH, "//*[contains(text(), 'Running') or contains(text(), 'Stop') or contains(text(), 'Emergency')]")
-        summary_parts = []
-        for s_el in summary_els:
-            txt = s_el.text.strip()
-            if any(k in txt for k in ["Running", "Stop", "Emergency", "Pause", "Battery", "Power Off"]):
-                if txt not in summary_parts and len(txt) < 150:
-                    summary_parts.append(txt.replace("\n", " "))
-        if summary_parts:
-            running_summary = " | ".join(summary_parts[:1])
-    except Exception as e:
-        print("Error fetching summary counts:", e)
 
     current_states = {}
     
@@ -111,7 +89,7 @@ try:
 
                 status = "running"
                 if "230, 0, 0" in combined_info or "red" in combined_info or "e60000" in combined_info:
-                    status = "emergency"
+                    status = "Emergency"
                 elif "230, 204, 0" in combined_info or "yellow" in combined_info or "e6cc00" in combined_info:
                     status = "stop"
                 elif "pause" in combined_info or "7c9fae" in combined_info:
@@ -119,7 +97,7 @@ try:
                 elif "poweroff" in combined_info or "6ec1fa" in combined_info:
                     status = "poweroff"
                 elif "black" in combined_info or "battery" in combined_info:
-                    status = "battery"
+                    status = "Battery"
                 elif "green" in combined_info or "0, 138, 0" in combined_info or "008a00" in combined_info:
                     status = "running"
 
@@ -128,7 +106,6 @@ try:
             continue
 
     print("Detected Current States:", current_states)
-    print("Summary Count:", running_summary)
 
     previous_states = {}
     if os.path.exists(STATE_FILE):
@@ -140,21 +117,31 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
+    # Check if any status has changed
+    state_changed = False
+
     if previous_states:
         for htsc, current_status in current_states.items():
             prev_status = previous_states.get(htsc)
-            if prev_status and prev_status != current_status:
-                print(f"CHANGE DETECTED for {htsc}: {prev_status} -> {current_status}")
-                send_telegram_alert(htsc, current_status, running_summary)
-            elif prev_status is None and current_status != "running":
-                send_telegram_alert(htsc, current_status, running_summary)
+            if prev_status != current_status:
+                state_changed = True
+                print(f"Status change detected for {htsc}: {prev_status} -> {current_status}")
+                break
     else:
-        print("First run initialized. Alerting non-running turbines...")
-        for htsc, current_status in current_states.items():
-            if current_status != "running":
-                print(f"Initial non-running status detected for {htsc}: {current_status}")
-                send_telegram_alert(htsc, current_status, running_summary)
+        # First run initialization
+        state_changed = True
 
+    # If status changed (or first run), build single combined message for all machines
+    if state_changed and current_states:
+        msg_lines = []
+        for index, (htsc, status) in enumerate(current_states.items(), start=1):
+            msg_lines.append(f"{index}. Loc.No: {htsc}\n  Status : {status}\n")
+
+        full_message = "\n".join(msg_lines)
+        print("Sending aggregated Telegram notification...")
+        send_telegram_alert(full_message)
+
+    # Save updated states
     if current_states:
         with open(STATE_FILE, "w") as f:
             json.dump(current_states, f, indent=4)
