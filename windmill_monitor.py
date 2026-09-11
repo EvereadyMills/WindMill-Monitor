@@ -23,7 +23,8 @@ def send_telegram_alert(htsc_number, status):
         "parse_mode": "Markdown"
     }
     try:
-        requests.post(url, json=payload)
+        response = requests.post(url, json=payload)
+        print("Telegram Response:", response.text)
     except Exception as e:
         print("Telegram Error:", e)
 
@@ -42,11 +43,11 @@ try:
     driver.find_element(By.ID, "password").send_keys(SCADA_PASSWORD)
     driver.find_element(By.NAME, "submit").click()
     
-    time.sleep(5) # Wait for login to complete
+    time.sleep(5)
     
-    # 2. Go to Parkview page where turbines are listed
+    # 2. Go to Parkview page
     driver.get(SCADA_PARKVIEW_URL)
-    time.sleep(6) # Wait for parkview dashboard to load
+    time.sleep(6)
     
     current_states = {}
     turbine_rows = driver.find_elements(By.XPATH, "//table//tr[position()>1]")
@@ -62,6 +63,8 @@ try:
         except:
             continue
 
+    print("Scraped Current States:", current_states)
+
     # Read previous state
     previous_states = {}
     if os.path.exists(STATE_FILE):
@@ -71,6 +74,8 @@ try:
             except:
                 pass
 
+    print("Previous States from file:", previous_states)
+
     # Compare changes and send alert
     if previous_states:
         for htsc, current_status in current_states.items():
@@ -78,6 +83,8 @@ try:
             if prev_status and prev_status != current_status:
                 if current_status in ["pause", "stop", "emergency", "battery", "poweroff"]:
                     send_telegram_alert(htsc, current_status)
+    else:
+        print("No previous states found for comparison (First run initialization).")
 
     # Save current state
     with open(STATE_FILE, "w") as f:
