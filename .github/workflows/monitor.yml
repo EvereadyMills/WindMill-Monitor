@@ -29,7 +29,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python windmill_monitor.py
-
           - name: Commit and push if state changed
         run: |
           git config --global user.name "GitHub Actions Bot"
