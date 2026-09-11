@@ -6,16 +6,26 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import requests
 
+# 1. Environment variables check
 SCADA_LOGIN_URL = "https://www.scadasolution.co.in/scada/scada-login/"
 SCADA_PARKVIEW_URL = "https://www.scadasolution.co.in/scada/scada-parkview/"
-SCADA_USERNAME = os.environ.get("SCADA_USER")
-SCADA_PASSWORD = os.environ.get("SCADA_PASS")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+SCADA_USERNAME = os.environ.get("SCADA_USER", "")
+SCADA_PASSWORD = os.environ.get("SCADA_PASS", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 STATE_FILE = "turbine_states.json"
 
+# Safety Check for missing secrets
+if not SCADA_USERNAME or not SCADA_PASSWORD:
+    print("❌ ERROR: SCADA_USER or SCADA_PASS environment variable is missing!")
+    print("Please check your GitHub Repository Secrets and Workflow env parameters.")
+
 def send_telegram_alert(htsc_number, status, running_status_summary):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("❌ Telegram token/chat_id missing. Cannot send alert.")
+        return
+
     message = (
         f"Htsc number : {htsc_number}\n"
         f"Status : {status}\n"
@@ -46,8 +56,15 @@ try:
     driver.get(SCADA_LOGIN_URL)
     time.sleep(4)
 
-    driver.find_element(By.ID, "uname").send_keys(SCADA_USERNAME)
-    driver.find_element(By.ID, "password").send_keys(SCADA_PASSWORD)
+    # Safely sending keys converting to string
+    uname_field = driver.find_element(By.ID, "uname")
+    uname_field.clear()
+    uname_field.send_keys(str(SCADA_USERNAME))
+
+    pass_field = driver.find_element(By.ID, "password")
+    pass_field.clear()
+    pass_field.send_keys(str(SCADA_PASSWORD))
+
     driver.find_element(By.NAME, "submit").click()
     print("2. Logged in successfully.")
     
@@ -55,9 +72,9 @@ try:
     
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
-    time.sleep(8)  # Wait for AJAX elements to render
+    time.sleep(8)
     
-    # 4. Extract Overall Running Status Summary from Top Bar
+    # Extract Overall Running Status Summary from Top Bar
     running_summary = "N/A"
     try:
         summary_els = driver.find_elements(By.XPATH, "//*[contains(text(), 'Running') or contains(text(), 'Stop') or contains(text(), 'Emergency')]")
@@ -74,20 +91,16 @@ try:
 
     current_states = {}
     
-    # 5. Search all turbine elements (containing 'SF')
+    # Search all turbine elements (containing 'SF')
     print("4. Searching Windmill Elements...")
     elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]") or []
     
     for el in elements:
         try:
             text = el.text.strip()
-            # Filter turbine tags like 'SF 042', 'SF 244', etc.
             if text.startswith("SF") and len(text) <= 10:
                 htsc_number = text
                 
-                # Check rendered background colors via CSS
-                bg_color = ""
-                parent = None
                 try:
                     bg_color = el.value_of_css_property("background-color")
                     parent = el.find_element(By.XPATH, "./..")
@@ -96,7 +109,6 @@ try:
                 except:
                     combined_info = ""
 
-                # Determine status based on color / text
                 status = "running"
                 if "230, 0, 0" in combined_info or "red" in combined_info or "e60000" in combined_info:
                     status = "emergency"
@@ -112,13 +124,13 @@ try:
                     status = "running"
 
                 current_states[htsc_number] = status
-        except Exception as el_err:
+        except Exception:
             continue
 
     print("Detected Current States from Website:", current_states)
     print("Summary Count extracted:", running_summary)
 
-    # 6. Safe Reading of Previous States File
+    # Safe Reading of Previous States File
     previous_states = {}
     if os.path.exists(STATE_FILE):
         try:
@@ -127,12 +139,11 @@ try:
                 if isinstance(loaded_data, dict):
                     previous_states = loaded_data
         except Exception as read_err:
-            print("Could not read previous state file, starting fresh:", read_err)
-            previous_states = {}
+            print("Starting fresh state tracking:", read_err)
 
     print("Previous States loaded:", previous_states)
 
-    # 7. Compare Changes & Send Alert
+    # Compare Changes & Send Alert
     if previous_states:
         for htsc, current_status in current_states.items():
             prev_status = previous_states.get(htsc)
@@ -140,17 +151,15 @@ try:
                 print(f"CHANGE DETECTED for {htsc}: {prev_status} -> {current_status}")
                 send_telegram_alert(htsc, current_status, running_summary)
             elif prev_status is None and current_status != "running":
-                # New windmill detected in non-running state
                 send_telegram_alert(htsc, current_status, running_summary)
     else:
-        print("First run or no previous states. Initializing state file.")
-        # If SF 244 is currently stopped/emergency on first run, alert once
+        print("First run initialized. Alerting non-running turbines...")
         for htsc, current_status in current_states.items():
             if current_status != "running":
                 print(f"Initial non-running status detected for {htsc}: {current_status}")
                 send_telegram_alert(htsc, current_status, running_summary)
 
-    # 8. Save updated states safely
+    # Save updated states
     if current_states:
         with open(STATE_FILE, "w") as f:
             json.dump(current_states, f, indent=4)
