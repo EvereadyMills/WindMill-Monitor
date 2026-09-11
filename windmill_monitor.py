@@ -5,7 +5,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import requests
 
-SCADA_URL = "https://www.scadasolution.co.in/scada/scada-login/"
+SCADA_LOGIN_URL = "https://www.scadasolution.co.in/scada/scada-login/"
+SCADA_PARKVIEW_URL = "https://www.scadasolution.co.in/scada/scada-parkview/"
 SCADA_USERNAME = os.environ.get("SCADA_USER")
 SCADA_PASSWORD = os.environ.get("SCADA_PASS")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -33,14 +34,19 @@ options.add_argument("--disable-dev-shm-usage")
 driver = webdriver.Chrome(options=options)
 
 try:
-    driver.get(SCADA_URL)
+    # 1. Login
+    driver.get(SCADA_LOGIN_URL)
     time.sleep(3)
 
     driver.find_element(By.ID, "uname").send_keys(SCADA_USERNAME)
     driver.find_element(By.ID, "password").send_keys(SCADA_PASSWORD)
     driver.find_element(By.NAME, "submit").click()
     
-    time.sleep(8) # Wait for dashboard to load
+    time.sleep(5) # Wait for login to complete
+    
+    # 2. Go to Parkview page where turbines are listed
+    driver.get(SCADA_PARKVIEW_URL)
+    time.sleep(6) # Wait for parkview dashboard to load
     
     current_states = {}
     turbine_rows = driver.find_elements(By.XPATH, "//table//tr[position()>1]")
@@ -75,7 +81,7 @@ try:
 
     # Save current state
     with open(STATE_FILE, "w") as f:
-        json.dump(current_states, f)
+        json.dump(current_states, f, indent=4)
 
     print("Monitor check completed successfully.")
 
