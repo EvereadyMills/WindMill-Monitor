@@ -108,12 +108,12 @@ try:
                 pass
 
     # Compare and send alert for ANY status change
-    if previous_states:
-        for htsc, current_status in current_states.items():
-            prev_status = previous_states.get(htsc)
-            if prev_status and prev_status != current_status:
-                print(f"Status changed for {htsc}: {prev_status} -> {current_status}. Sending alert.")
-                send_telegram_alert(htsc, current_status, summary_counts)
+        # நேரடியாக எல்லா விண்டுமில் ஸ்டேட்டஸையும் மெசேஜ் அனுப்பச் சொல்கிறோம் (டெஸ்டிங்கிற்காக மட்டும்)
+    for htsc, current_status in current_states.items():
+        if current_status != "running": # Running தவிர மற்ற பிரச்சனை இருந்தால் மட்டும் மெசேஜ் வரும்
+            print(f"Alert condition met for {htsc}. Sending alert.")
+            send_telegram_alert(htsc, current_status, summary_counts)
+
     else:
         print("No previous states found. Initializing states.")
 
