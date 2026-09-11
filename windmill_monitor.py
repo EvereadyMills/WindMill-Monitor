@@ -50,18 +50,34 @@ try:
     time.sleep(6)
     
     current_states = {}
-    turbine_rows = driver.find_elements(By.XPATH, "//table//tr[position()>1]")
+    # Find all turbine elements by looking for text starting with 'SF'
+    elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]")
     
-    for row in turbine_rows:
-        try:
-            cols = row.find_elements(By.TAG_NAME, "td")
-            if len(cols) >= 2:
-                htsc_number = cols[0].text.strip()
-                status = cols[1].text.strip().lower()
-                if htsc_number:
+    if elements:
+        for el in elements:
+            try:
+                text = el.text.strip()
+                if text.startswith("SF") and len(text) < 15:
+                    htsc_number = text
+                    
+                    # Check background color or attributes of the element or its parent to determine status
+                    class_attr = el.get_attribute("class") or ""
+                    parent_el = el.find_element(By.XPATH, "./..")
+                    parent_class = parent_el.get_attribute("class") or ""
+                    parent_style = parent_el.get_attribute("style") or ""
+                    
+                    combined_info = (class_attr + " " + parent_class + " " + parent_style).lower()
+                    
+                    # Default status is running, but if it indicates stop/emergency/red/etc.
+                    status = "running"
+                    if any(keyword in combined_info for keyword in ["stop", "emergency", "pause", "fault", "trip", "off", "red", "danger"]):
+                        status = "stop"
+                    elif "green" in combined_info or "run" in combined_info:
+                        status = "running"
+                    
                     current_states[htsc_number] = status
-        except:
-            continue
+            except:
+                continue
 
     print("Scraped Current States:", current_states)
 
