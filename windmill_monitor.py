@@ -41,6 +41,41 @@ def send_telegram_alert(full_message):
     except Exception as e:
         print("Telegram Error:", e)
 
+def normalize_status(raw_status, bg_color=""):
+    """
+    SCADA Status-ஐ சரியான வார்த்தைக்கு (Emergency, Running, Stop, Pause, etc.) மாற்றுவதற்கான ஃபங்ஷன்
+    """
+    s = str(raw_status).strip().lower()
+    
+    # Text Mapping
+    if "emerg" in s:
+        return "Emergency"
+    elif "pause" in s:
+        return "Pause"
+    elif "stop" in s:
+        return "Stop"
+    elif "batt" in s:
+        return "Battery"
+    elif "power" in s or "off" in s:
+        return "Power Off"
+    elif "disp" in s or "connect" in s:
+        return "Display Connected"
+    elif "run" in s:
+        return "Running"
+        
+    # Color-based Fallback (0 அல்லது எண்கள் வந்தால்)
+    bg = bg_color.lower()
+    if "230, 0, 0" in bg or "255, 0, 0" in bg or "red" in bg:
+        return "Emergency"
+    elif "230, 204, 0" in bg or "yellow" in bg or "orange" in bg:
+        return "Stop"
+    elif "0, 0, 255" in bg or "blue" in bg:
+        return "Pause"
+    elif "0, 128, 0" in bg or "green" in bg:
+        return "Running"
+        
+    return "Emergency" if s == "0" else raw_status
+
 chrome_options = Options()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
@@ -95,6 +130,7 @@ try:
         kw = "-"
         rrpm = "-"
         grpm = "-"
+        bg_color = ""
 
         for attempt in range(3):
             try:
@@ -103,6 +139,10 @@ try:
                     break
                 
                 el = elements[0]
+                try:
+                    bg_color = el.value_of_css_property("background-color")
+                except:
+                    bg_color = ""
 
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
                 time.sleep(0.5)
@@ -149,19 +189,8 @@ try:
                     except:
                         continue
 
-                # Status Fallback checking element style/color
-                if status == "-":
-                    try:
-                        bg = el.value_of_css_property("background-color")
-                        if "230, 0, 0" in bg or "255, 0, 0" in bg or "red" in bg:
-                            status = "Emergency"
-                        elif "230, 204, 0" in bg or "yellow" in bg:
-                            status = "stop"
-                        else:
-                            status = "running"
-                    except:
-                        status = "running"
-                
+                # Normalizing status text
+                status = normalize_status(status, bg_color)
                 break
 
             except Exception as retry_err:
