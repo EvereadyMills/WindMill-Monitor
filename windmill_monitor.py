@@ -68,43 +68,63 @@ try:
     
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
-    time.sleep(10)
+    
+    # Page components load ஆக 15 வினாடிகள் முழுமையாக காத்திருக்கிறோம்
+    time.sleep(15)
 
-    # 1. முதலில் பக்கத்தில் உள்ள அனைத்து SF விண்ட்மில் பெயர்களை மட்டும் கண்டுபிடிக்கிறோம்
+    # iFrame உள்ளதா எனச் சோதித்து Switch செய்கிறோம்
+    iframes = driver.find_elements(By.TAG_NAME, "iframe")
+    if iframes:
+        print(f"Found {len(iframes)} iframe(s), switching to first frame...")
+        driver.switch_to.frame(0)
+        time.sleep(3)
+
     print("4. Identifying Windmill Names...")
-    raw_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]") or []
+    
+    # SF எனத் தொடங்கும் அனைத்து Elements-ஐயும் எடுக்க விரிவான XPath
+    raw_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF') or contains(@id, 'SF') or contains(@class, 'SF')]") or []
     sf_names = []
     
     for item in raw_elements:
         try:
             txt = item.text.strip()
-            if txt.startswith("SF") and len(txt) <= 10 and txt not in sf_names:
-                sf_names.append(txt)
+            if "SF" in txt:
+                # Text-இல் இருந்து SF 042 / SF 101 போன்ற பெயர்களைப் பிரித்தல்
+                for word in txt.split():
+                    if word.startswith("SF") and len(word) <= 10 and word not in sf_names:
+                        sf_names.append(word)
+            elif item.get_attribute("id") and item.get_attribute("id").startswith("SF"):
+                id_val = item.get_attribute("id").strip()
+                if id_val not in sf_names:
+                    sf_names.append(id_val)
         except:
             continue
+
+    # ஒருவேளை பெயர்கள் சிக்காவிட்டால் பொதுவான SF Pattern XPath
+    if not sf_names:
+        fallback_elems = driver.find_elements(By.XPATH, "//*[re:test(text(), '^SF\s*\d+')]") if hasattr(By, 'XPATH') else []
+        for fe in fallback_elems:
+            t = fe.text.strip()
+            if t and t not in sf_names:
+                sf_names.append(t)
 
     print(f"Total Windmills Found: {len(sf_names)} -> {sf_names}")
 
     current_data = {}
     actions = ActionChains(driver)
 
-    # 2. ஒவ்வொரு Windmill பெயருக்கும் நேரலையில் (Fresh) Element-ஐக் கண்டுபிடித்து Hover செய்கிறோம்
     for htsc_number in sf_names:
         try:
-            # Stale Element ஆவதைத் தவிர்க்க ஒவ்வொரு முறையும் Fresh Element தேடுகிறோம்
             fresh_elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{htsc_number}')]")
             if not fresh_elements:
                 continue
             
             el = fresh_elements[0]
 
-            # Hover செய்ய Scroll மற்றும் ActionChains
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
             time.sleep(1)
             actions.move_to_element(el).perform()
-            
-            # Pop-up வந்து Data refresh ஆக 2.5 நொடிகள் காத்திருத்தல்
-            time.sleep(2.5)
+            time.sleep(3)
 
             status = "-"
             ws = "-"
@@ -112,7 +132,6 @@ try:
             rrpm = "-"
             grpm = "-"
 
-            # Pop-up Box-இல் உள்ள நேரலைத் தரவுகளைப் பிரித்தெடுத்தல்
             try:
                 popup_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'W/S') or contains(text(), 'KW')]")
                 for pop in popup_elements:
@@ -134,7 +153,6 @@ try:
             except Exception as h_err:
                 print(f"Hover error on {htsc_number}:", h_err)
 
-            # Pop-up text கிடைக்கவில்லையெனில் Color-based status
             if status == "-":
                 try:
                     bg = el.value_of_css_property("background-color")
@@ -160,7 +178,6 @@ try:
 
     print("Detected Current Data:", current_data)
 
-    # Previous State Reading
     previous_states = {}
     if os.path.exists(STATE_FILE):
         try:
@@ -171,7 +188,6 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
-    # State Change Detection
     state_changed = False
     if previous_states:
         for htsc, val in current_data.items():
@@ -184,12 +200,10 @@ try:
     else:
         state_changed = True
 
-    # 8 AM & 6 PM IST Check
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
-    # Plain Text Normal Message Format (Code block நீக்கப்பட்டது)
     if (state_changed or is_scheduled_report) and current_data:
         msg_lines = []
         for index, (htsc, val) in enumerate(current_data.items(), start=1):
@@ -206,7 +220,6 @@ try:
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
 
-    # Cache சேமித்தல்
     if current_data:
         with open(STATE_FILE, "w") as f:
             json.dump(current_data, f, indent=4)
