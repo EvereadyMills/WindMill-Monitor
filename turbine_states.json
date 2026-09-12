@@ -1,6 +1,41 @@
 {
-    "SF": {
+    "SF 042": {
         "status": "Run",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
+    "SF 1019": {
+        "status": "Run",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
+    "SF 1023": {
+        "status": "Run",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
+    "SF 151": {
+        "status": "running",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
+    "SF 154": {
+        "status": "Run",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
+    "SF 244": {
+        "status": "0",
         "ws": "-",
         "kw": "-",
         "rrpm": "-",
