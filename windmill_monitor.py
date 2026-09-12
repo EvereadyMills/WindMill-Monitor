@@ -104,7 +104,6 @@ try:
                 
                 el = elements[0]
 
-                # Scroll to element and hover via ActionChains & JS
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
                 time.sleep(0.5)
 
@@ -126,13 +125,9 @@ try:
                     });
                 """, el)
                 
-                time.sleep(2.5) # Wait for hover tooltip to populate data
+                time.sleep(2.5)
 
-                # Extract text from visible tooltip / entire page text after hover
-                page_src = driver.find_element(By.TAG_NAME, "body").text
-                
-                # Check all popups or elements containing technical keywords
-                popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'KW') or contains(text(), 'W/S') or contains(text(), 'RRPM')]")
+                popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'KW') or contains(text(), 'W/S') or contains(text(), 'RRPM') or contains(text(), 'GRPM') or contains(text(), 'RPM')]")
                 
                 for pop in popups:
                     try:
@@ -147,9 +142,9 @@ try:
                                     ws = line_clean.split(":")[-1].strip()
                                 elif ("KW" in line_clean or "kw" in line_clean) and ":" in line_clean:
                                     kw = line_clean.split(":")[-1].strip()
-                                elif "RRPM" in line_clean and ":" in line_clean:
+                                elif ("RRPM" in line_clean or "R/RPM" in line_clean) and ":" in line_clean:
                                     rrpm = line_clean.split(":")[-1].strip()
-                                elif "GRPM" in line_clean and ":" in line_clean:
+                                elif ("GRPM" in line_clean or "G/RPM" in line_clean or "Gen RPM" in line_clean) and ":" in line_clean:
                                     grpm = line_clean.split(":")[-1].strip()
                     except:
                         continue
