@@ -21,6 +21,20 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 STATE_FILE = "turbine_states.json"
 
+# Master Data Configuration
+MASTER_DATA = {
+    "SF 175": {"location": "Theni", "htsc": "059224760030", "order": 1},
+    "SF 101": {"location": "Theni", "htsc": "059224760031", "order": 2},
+    "SF 042": {"location": "Theni", "htsc": "059224760045", "order": 3},
+    "SF 151": {"location": "Theni", "htsc": "059224760060", "order": 4},
+    "SF 154": {"location": "Theni", "htsc": "059224760064", "order": 5},
+    "SF 244": {"location": "Palladam", "htsc": "039224391807", "order": 6},
+    "SF 523": {"location": "Palladam", "htsc": "039224391808", "order": 7},
+    "SF 1078": {"location": "Palladam", "htsc": "039224391941", "order": 8},
+    "SF 1023": {"location": "Palladam", "htsc": "039224391942", "order": 9},
+    "SF 1019": {"location": "Palladam", "htsc": "039224391943", "order": 10}
+}
+
 if not SCADA_USERNAME or not SCADA_PASSWORD:
     print("❌ ERROR: SCADA_USER or SCADA_PASS is missing in Environment Variables!")
     exit(1)
@@ -33,7 +47,8 @@ def send_telegram_alert(full_message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
-        "text": full_message
+        "text": full_message,
+        "parse_mode": "HTML"
     }
     try:
         response = requests.post(url, json=payload)
@@ -42,12 +57,8 @@ def send_telegram_alert(full_message):
         print("Telegram Error:", e)
 
 def normalize_status(raw_status, bg_color=""):
-    """
-    SCADA Status-ஐ சரியான வார்த்தைக்கு (Emergency, Running, Stop, Pause, etc.) மாற்றுவதற்கான ஃபங்ஷன்
-    """
     s = str(raw_status).strip().lower()
     
-    # Text Mapping
     if "emerg" in s:
         return "Emergency"
     elif "pause" in s:
@@ -63,7 +74,6 @@ def normalize_status(raw_status, bg_color=""):
     elif "run" in s:
         return "Running"
         
-    # Color-based Fallback (0 அல்லது எண்கள் வந்தால்)
     bg = bg_color.lower()
     if "230, 0, 0" in bg or "255, 0, 0" in bg or "red" in bg:
         return "Emergency"
@@ -75,6 +85,61 @@ def normalize_status(raw_status, bg_color=""):
         return "Running"
         
     return "Emergency" if s == "0" else raw_status
+
+def format_two_column_message(data):
+    # Separate data based on order
+    left_items = []
+    right_items = []
+
+    sorted_keys = sorted(data.keys(), key=lambda k: MASTER_DATA.get(k, {}).get("order", 99))
+
+    for key in sorted_keys:
+        item = data[key]
+        order = item.get("order", 99)
+        if order <= 5:
+            left_items.append(item)
+        else:
+            right_items.append(item)
+
+    header = f"{'Location: Theni':<32} {'Location: Palladam':<32}\n\n"
+    body_lines = []
+
+    for i in range(max(len(left_items), len(right_items))):
+        left = left_items[i] if i < len(left_items) else None
+        right = right_items[i] if i < len(right_items) else None
+
+        l_no = f"{left['order']}. Loc.No  : {left['name']}" if left else ""
+        r_no = f"{right['order']}. Loc.No  : {right['name']}" if right else ""
+        body_lines.append(f"{l_no:<32} {r_no:<32}")
+
+        l_htsc = f"   HTSC.No : {left['htsc']}" if left else ""
+        r_htsc = f"   HTSC.No : {right['htsc']}" if right else ""
+        body_lines.append(f"{l_htsc:<32} {r_htsc:<32}")
+
+        l_st = f"   Status  : {left['status']}" if left else ""
+        r_st = f"   Status  : {right['status']}" if right else ""
+        body_lines.append(f"{l_st:<32} {r_st:<32}")
+
+        l_ws = f"   w/s     : {left['ws']}" if left else ""
+        r_ws = f"   w/s     : {right['ws']}" if right else ""
+        body_lines.append(f"{l_ws:<32} {r_ws:<32}")
+
+        l_kw = f"   kw      : {left['kw']}" if left else ""
+        r_kw = f"   kw      : {right['kw']}" if right else ""
+        body_lines.append(f"{l_kw:<32} {r_kw:<32}")
+
+        l_rrpm = f"   RRPM    : {left['rrpm']}" if left else ""
+        r_rrpm = f"   RRPM    : {right['rrpm']}" if right else ""
+        body_lines.append(f"{l_rrpm:<32} {r_rrpm:<32}")
+
+        l_grpm = f"   GRPM    : {left['grpm']}" if left else ""
+        r_grpm = f"   GRPM    : {right['grpm']}" if right else ""
+        body_lines.append(f"{l_grpm:<32} {r_grpm:<32}")
+
+        body_lines.append("") # Empty line gap between windmills
+
+    full_text = header + "\n".join(body_lines)
+    return f"<pre>{full_text}</pre>"
 
 chrome_options = Options()
 chrome_options.add_argument("--headless")
@@ -106,7 +171,6 @@ try:
     driver.get(SCADA_PARKVIEW_URL)
     time.sleep(12)
 
-    # Frame handling
     iframes = driver.find_elements(By.TAG_NAME, "iframe")
     if iframes:
         driver.switch_to.frame(0)
@@ -117,7 +181,6 @@ try:
     body_text = driver.find_element(By.TAG_NAME, "body").text
     sf_names = list(set(re.findall(r'SF\s*\d+', body_text)))
     sf_names = [re.sub(r'\s+', ' ', name) for name in sf_names]
-    sf_names.sort()
 
     print(f"Total Windmills Found: {len(sf_names)} -> {sf_names}")
 
@@ -131,6 +194,8 @@ try:
         rrpm = "-"
         grpm = "-"
         bg_color = ""
+
+        master_info = MASTER_DATA.get(htsc_number, {"location": "-", "htsc": "-", "order": 99})
 
         for attempt in range(3):
             try:
@@ -189,7 +254,6 @@ try:
                     except:
                         continue
 
-                # Normalizing status text
                 status = normalize_status(status, bg_color)
                 break
 
@@ -197,11 +261,15 @@ try:
                 time.sleep(1)
 
         current_data[htsc_number] = {
+            "name": htsc_number,
             "status": status,
             "ws": ws,
             "kw": kw,
             "rrpm": rrpm,
-            "grpm": grpm
+            "grpm": grpm,
+            "location": master_info["location"],
+            "htsc": master_info["htsc"],
+            "order": master_info["order"]
         }
 
     print("Detected Current Data:", current_data)
@@ -237,18 +305,7 @@ try:
 
     # Send Notification
     if (state_changed or is_scheduled_report) and current_data:
-        msg_lines = []
-        for index, (htsc, val) in enumerate(current_data.items(), start=1):
-            msg_lines.append(
-                f"{index}. Loc.No   : {htsc}\n"
-                f"   Status   : {val['status']}\n"
-                f"   w/s      : {val['ws']}\n"
-                f"   kw       : {val['kw']}\n"
-                f"   RRPM     : {val['rrpm']}\n"
-                f"   GRPM     : {val['grpm']}\n"
-            )
-
-        full_message = "\n".join(msg_lines)
+        full_message = format_two_column_message(current_data)
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
 
