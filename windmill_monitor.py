@@ -78,19 +78,12 @@ try:
         time.sleep(3)
 
     print("4. Identifying Windmill Numbers...")
-    all_elements = driver.find_elements(By.XPATH, "//*[text()]")
-    sf_names = []
     
-    for el in all_elements:
-        try:
-            txt = el.text.strip()
-            matches = re.findall(r'SF\s*\d+', txt)
-            for m in matches:
-                clean_name = re.sub(r'\s+', ' ', m)
-                if clean_name not in sf_names:
-                    sf_names.append(clean_name)
-        except:
-            continue
+    # Text மூலமாக விண்ட்மில் எண்களை எடுத்தல்
+    body_text = driver.find_element(By.TAG_NAME, "body").text
+    sf_names = list(set(re.findall(r'SF\s*\d+', body_text)))
+    sf_names = [re.sub(r'\s+', ' ', name) for name in sf_names]
+    sf_names.sort()
 
     print(f"Total Windmills Found: {len(sf_names)} -> {sf_names}")
 
@@ -102,32 +95,36 @@ try:
         kw = "-"
         rrpm = "-"
         grpm = "-"
-        
-        # Stale Element Exception-ஐத் தவிர்க்க 3 முறை முயற்சிக்கும் Loop
+
         for attempt in range(3):
             try:
-                fresh_elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{htsc_number}')]")
-                if not fresh_elements:
+                # எலிமெண்ட்டை நேரடியாகத் தேடி எடுத்தல்
+                elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{htsc_number}')]")
+                if not elements:
                     break
                 
-                el = fresh_elements[0]
+                el = elements[0]
 
-                # Move to element & Mouseover trigger
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
-                time.sleep(0.5)
+                # JS DispatchEvent மூலம் Mouseover தூண்டுதல் (Stale அவாய்ட் செய்ய)
+                driver.execute_script("""
+                    var elem = arguments[0];
+                    var mouseOverEvent = new MouseEvent('mouseover', {
+                        'view': window,
+                        'bubbles': true,
+                        'cancelable': true
+                    });
+                    elem.dispatchEvent(mouseOverEvent);
+                """, el)
                 
-                actions = ActionChains(driver)
-                actions.move_to_element(el).perform()
-                driver.execute_script("var evObj = document.createEvent('MouseEvents'); evObj.initEvent('mouseover', true, false); arguments[0].dispatchEvent(evObj);", el)
-                
-                time.sleep(2.5) # Wait for live pop-up values
+                time.sleep(2) # Pop-up தோன்றும் வரை காத்திருத்தல்
 
-                # Read Pop-up Data
+                # Pop-up விவரங்களைப் படித்தல்
                 popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'W/S') or contains(text(), 'KW') or contains(text(), 'RRPM')]")
                 for pop in popups:
                     try:
-                        if pop.is_displayed():
-                            lines = pop.text.split("\n")
+                        p_text = pop.text
+                        if "Status" in p_text or "W/S" in p_text:
+                            lines = p_text.split("\n")
                             for line in lines:
                                 l_str = line.strip()
                                 if "Status" in l_str and ":" in l_str:
@@ -145,7 +142,7 @@ try:
                     except:
                         continue
 
-                # Fallback Status based on element background color
+                # Background Color Fallback
                 if status == "-":
                     try:
                         bg = el.value_of_css_property("background-color")
@@ -158,11 +155,9 @@ try:
                     except:
                         status = "running"
                 
-                # Success - loop-ஐ விட்டு வெளியேறுதல்
-                break
+                break # வெற்றி பெற்றால் Loop-ஐ விட்டு வெளியேறுதல்
 
             except Exception as retry_err:
-                print(f"Retry {attempt+1} for {htsc_number} due to: {retry_err}")
                 time.sleep(1)
 
         current_data[htsc_number] = {
@@ -186,7 +181,7 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
-    # Change Detection
+    # State Change Check
     state_changed = False
     if previous_states:
         for htsc, val in current_data.items():
@@ -199,12 +194,12 @@ try:
     else:
         state_changed = True
 
-    # 8 AM & 6 PM Scheduled Time Check
+    # Scheduled Check (8 AM & 6 PM IST)
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
-    # Normal plain text format
+    # Send Notification
     if (state_changed or is_scheduled_report) and current_data:
         msg_lines = []
         for index, (htsc, val) in enumerate(current_data.items(), start=1):
@@ -221,7 +216,7 @@ try:
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
 
-    # Save state
+    # Save current state
     if current_data:
         with open(STATE_FILE, "w") as f:
             json.dump(current_data, f, indent=4)
