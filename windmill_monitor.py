@@ -19,7 +19,7 @@ SCADA_PASSWORD = os.environ.get("SCADA_PASS")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# Fetching Master Data securely from GitHub Secret Environment Variable
+# GitHub Secret-இல் இருந்து Master Data-வை இரகசியமாகப் பெறுகிறது
 raw_master_data = os.environ.get("MASTER_DATA_JSON")
 MASTER_DATA = {}
 if raw_master_data:
@@ -81,59 +81,31 @@ def normalize_status(raw_status, bg_color=""):
         
     return "Emergency" if s == "0" else raw_status
 
-def format_two_column_message(data):
-    left_items = []
-    right_items = []
-
+def format_clean_message(data):
     sorted_keys = sorted(data.keys(), key=lambda k: MASTER_DATA.get(k, {}).get("order", 99))
+    
+    current_location = ""
+    lines = []
 
     for key in sorted_keys:
         item = data[key]
-        order = item.get("order", 99)
-        if order <= 5:
-            left_items.append(item)
-        else:
-            right_items.append(item)
+        loc = item.get("location", "-")
+        order = item.get("order", "-")
 
-    header = f"{'Location: Theni':<32} {'Location: Palladam':<32}\n\n"
-    body_lines = []
+        # Location மாறும் போது Heading சேர்க்கப்படும்
+        if loc != current_location:
+            current_location = loc
+            lines.append(f"📍 <b>Location: {current_location}</b>\n")
 
-    for i in range(max(len(left_items), len(right_items))):
-        left = left_items[i] if i < len(left_items) else None
-        right = right_items[i] if i < len(right_items) else None
+        lines.append(f"{order}. Loc.No  : <b>{item['name']}</b>")
+        lines.append(f"   HTSC.No : {item['htsc']}")
+        lines.append(f"   Status  : {item['status']}")
+        lines.append(f"   w/s     : {item['ws']}")
+        lines.append(f"   kw      : {item['kw']}")
+        lines.append(f"   RRPM    : {item['rrpm']}")
+        lines.append(f"   GRPM    : {item['grpm']}\n")
 
-        l_no = f"{left['order']}. Loc.No  : {left['name']}" if left else ""
-        r_no = f"{right['order']}. Loc.No  : {right['name']}" if right else ""
-        body_lines.append(f"{l_no:<32} {r_no:<32}")
-
-        l_htsc = f"   HTSC.No : {left['htsc']}" if left else ""
-        r_htsc = f"   HTSC.No : {right['htsc']}" if right else ""
-        body_lines.append(f"{l_htsc:<32} {r_htsc:<32}")
-
-        l_st = f"   Status  : {left['status']}" if left else ""
-        r_st = f"   Status  : {right['status']}" if right else ""
-        body_lines.append(f"{l_st:<32} {r_st:<32}")
-
-        l_ws = f"   w/s     : {left['ws']}" if left else ""
-        r_ws = f"   w/s     : {right['ws']}" if right else ""
-        body_lines.append(f"{l_ws:<32} {r_ws:<32}")
-
-        l_kw = f"   kw      : {left['kw']}" if left else ""
-        r_kw = f"   kw      : {right['kw']}" if right else ""
-        body_lines.append(f"{l_kw:<32} {r_kw:<32}")
-
-        l_rrpm = f"   RRPM    : {left['rrpm']}" if left else ""
-        r_rrpm = f"   RRPM    : {right['rrpm']}" if right else ""
-        body_lines.append(f"{l_rrpm:<32} {r_rrpm:<32}")
-
-        l_grpm = f"   GRPM    : {left['grpm']}" if left else ""
-        r_grpm = f"   GRPM    : {right['grpm']}" if right else ""
-        body_lines.append(f"{l_grpm:<32} {r_grpm:<32}")
-
-        body_lines.append("")
-
-    full_text = header + "\n".join(body_lines)
-    return f"<pre>{full_text}</pre>"
+    return "\n".join(lines)
 
 chrome_options = Options()
 chrome_options.add_argument("--headless")
@@ -299,7 +271,7 @@ try:
 
     # Send Notification
     if (state_changed or is_scheduled_report) and current_data:
-        full_message = format_two_column_message(current_data)
+        full_message = format_clean_message(current_data)
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
 
