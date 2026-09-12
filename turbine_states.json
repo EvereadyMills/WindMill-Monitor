@@ -6,6 +6,13 @@
         "rrpm": "-",
         "grpm": "-"
     },
+    "SF 101": {
+        "status": "Run",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
     "SF 1019": {
         "status": "Run",
         "ws": "-",
@@ -20,8 +27,15 @@
         "rrpm": "-",
         "grpm": "-"
     },
+    "SF 1078": {
+        "status": "Run",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
     "SF 151": {
-        "status": "running",
+        "status": "Run",
         "ws": "-",
         "kw": "-",
         "rrpm": "-",
@@ -34,8 +48,22 @@
         "rrpm": "-",
         "grpm": "-"
     },
+    "SF 175": {
+        "status": "Run",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
     "SF 244": {
         "status": "0",
+        "ws": "-",
+        "kw": "-",
+        "rrpm": "-",
+        "grpm": "-"
+    },
+    "SF 523": {
+        "status": "Run",
         "ws": "-",
         "kw": "-",
         "rrpm": "-",
