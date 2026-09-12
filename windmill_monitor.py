@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import re
 import traceback
 import requests
 from datetime import datetime
@@ -68,45 +69,31 @@ try:
     
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
-    
-    # Page components load ஆக 15 வினாடிகள் முழுமையாக காத்திருக்கிறோம்
-    time.sleep(15)
+    time.sleep(12)
 
-    # iFrame உள்ளதா எனச் சோதித்து Switch செய்கிறோம்
+    # If inside iframe, switch frame
     iframes = driver.find_elements(By.TAG_NAME, "iframe")
     if iframes:
-        print(f"Found {len(iframes)} iframe(s), switching to first frame...")
         driver.switch_to.frame(0)
         time.sleep(3)
 
-    print("4. Identifying Windmill Names...")
+    print("4. Identifying Windmill Numbers...")
     
-    # SF எனத் தொடங்கும் அனைத்து Elements-ஐயும் எடுக்க விரிவான XPath
-    raw_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF') or contains(@id, 'SF') or contains(@class, 'SF')]") or []
+    # Get all text elements from the body
+    all_elements = driver.find_elements(By.XPATH, "//*[text()]")
     sf_names = []
     
-    for item in raw_elements:
+    for el in all_elements:
         try:
-            txt = item.text.strip()
-            if "SF" in txt:
-                # Text-இல் இருந்து SF 042 / SF 101 போன்ற பெயர்களைப் பிரித்தல்
-                for word in txt.split():
-                    if word.startswith("SF") and len(word) <= 10 and word not in sf_names:
-                        sf_names.append(word)
-            elif item.get_attribute("id") and item.get_attribute("id").startswith("SF"):
-                id_val = item.get_attribute("id").strip()
-                if id_val not in sf_names:
-                    sf_names.append(id_val)
+            txt = el.text.strip()
+            # SF பக்கத்தில் குறைந்தபட்சம் 2 இலக்க எண் இருக்க வேண்டும் (Eg: SF 042, SF 101)
+            matches = re.findall(r'SF\s*\d+', txt)
+            for m in matches:
+                clean_name = re.sub(r'\s+', ' ', m)
+                if clean_name not in sf_names:
+                    sf_names.append(clean_name)
         except:
             continue
-
-    # ஒருவேளை பெயர்கள் சிக்காவிட்டால் பொதுவான SF Pattern XPath
-    if not sf_names:
-        fallback_elems = driver.find_elements(By.XPATH, "//*[re:test(text(), '^SF\s*\d+')]") if hasattr(By, 'XPATH') else []
-        for fe in fallback_elems:
-            t = fe.text.strip()
-            if t and t not in sf_names:
-                sf_names.append(t)
 
     print(f"Total Windmills Found: {len(sf_names)} -> {sf_names}")
 
@@ -115,16 +102,22 @@ try:
 
     for htsc_number in sf_names:
         try:
+            # Re-find element to avoid stale exception
             fresh_elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{htsc_number}')]")
             if not fresh_elements:
                 continue
             
             el = fresh_elements[0]
 
+            # Hover using JavaScript & ActionChains
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
             time.sleep(1)
+            
+            # Hover trigger
             actions.move_to_element(el).perform()
-            time.sleep(3)
+            driver.execute_script("var evObj = document.createEvent('MouseEvents'); evObj.initEvent('mouseover', true, false); arguments[0].dispatchEvent(evObj);", el)
+            
+            time.sleep(3) # Wait for live popup numbers
 
             status = "-"
             ws = "-"
@@ -132,14 +125,15 @@ try:
             rrpm = "-"
             grpm = "-"
 
+            # Extract popup values from active popups / tooltips
             try:
-                popup_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'W/S') or contains(text(), 'KW')]")
-                for pop in popup_elements:
+                popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'W/S') or contains(text(), 'KW') or contains(text(), 'RRPM')]")
+                for pop in popups:
                     if pop.is_displayed():
                         lines = pop.text.split("\n")
                         for line in lines:
                             l_str = line.strip()
-                            if "Status" in l_str and ":" in l_str:
+                            if "Status" in l_str:
                                 status = l_str.split(":")[-1].strip()
                             elif "W/S" in l_str or "w/s" in l_str:
                                 ws = l_str.split(":")[-1].strip()
@@ -149,10 +143,12 @@ try:
                                 rrpm = l_str.split(":")[-1].strip()
                             elif "GRPM" in l_str:
                                 grpm = l_str.split(":")[-1].strip()
-                        break
+                        if status != "-" or ws != "-":
+                            break
             except Exception as h_err:
-                print(f"Hover error on {htsc_number}:", h_err)
+                print(f"Hover extract error on {htsc_number}:", h_err)
 
+            # Color fallback if status is missing
             if status == "-":
                 try:
                     bg = el.value_of_css_property("background-color")
@@ -178,6 +174,7 @@ try:
 
     print("Detected Current Data:", current_data)
 
+    # Previous State Reading
     previous_states = {}
     if os.path.exists(STATE_FILE):
         try:
@@ -188,6 +185,7 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
+    # Change Detection
     state_changed = False
     if previous_states:
         for htsc, val in current_data.items():
@@ -200,10 +198,12 @@ try:
     else:
         state_changed = True
 
+    # Schedule Check
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
+    # Plain text format message
     if (state_changed or is_scheduled_report) and current_data:
         msg_lines = []
         for index, (htsc, val) in enumerate(current_data.items(), start=1):
@@ -220,6 +220,7 @@ try:
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
 
+    # Save state
     if current_data:
         with open(STATE_FILE, "w") as f:
             json.dump(current_data, f, indent=4)
