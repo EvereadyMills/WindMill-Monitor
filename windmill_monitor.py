@@ -19,21 +19,16 @@ SCADA_PASSWORD = os.environ.get("SCADA_PASS")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-STATE_FILE = "turbine_states.json"
+# Fetching Master Data securely from GitHub Secret Environment Variable
+raw_master_data = os.environ.get("MASTER_DATA_JSON")
+MASTER_DATA = {}
+if raw_master_data:
+    try:
+        MASTER_DATA = json.loads(raw_master_data)
+    except Exception as e:
+        print("❌ Error parsing MASTER_DATA_JSON:", e)
 
-# Master Data Configuration
-MASTER_DATA = {
-    "SF 175": {"location": "Theni", "htsc": "059224760030", "order": 1},
-    "SF 101": {"location": "Theni", "htsc": "059224760031", "order": 2},
-    "SF 042": {"location": "Theni", "htsc": "059224760045", "order": 3},
-    "SF 151": {"location": "Theni", "htsc": "059224760060", "order": 4},
-    "SF 154": {"location": "Theni", "htsc": "059224760064", "order": 5},
-    "SF 244": {"location": "Palladam", "htsc": "039224391807", "order": 6},
-    "SF 523": {"location": "Palladam", "htsc": "039224391808", "order": 7},
-    "SF 1078": {"location": "Palladam", "htsc": "039224391941", "order": 8},
-    "SF 1023": {"location": "Palladam", "htsc": "039224391942", "order": 9},
-    "SF 1019": {"location": "Palladam", "htsc": "039224391943", "order": 10}
-}
+STATE_FILE = "turbine_states.json"
 
 if not SCADA_USERNAME or not SCADA_PASSWORD:
     print("❌ ERROR: SCADA_USER or SCADA_PASS is missing in Environment Variables!")
@@ -87,7 +82,6 @@ def normalize_status(raw_status, bg_color=""):
     return "Emergency" if s == "0" else raw_status
 
 def format_two_column_message(data):
-    # Separate data based on order
     left_items = []
     right_items = []
 
@@ -136,7 +130,7 @@ def format_two_column_message(data):
         r_grpm = f"   GRPM    : {right['grpm']}" if right else ""
         body_lines.append(f"{l_grpm:<32} {r_grpm:<32}")
 
-        body_lines.append("") # Empty line gap between windmills
+        body_lines.append("")
 
     full_text = header + "\n".join(body_lines)
     return f"<pre>{full_text}</pre>"
@@ -267,9 +261,9 @@ try:
             "kw": kw,
             "rrpm": rrpm,
             "grpm": grpm,
-            "location": master_info["location"],
-            "htsc": master_info["htsc"],
-            "order": master_info["order"]
+            "location": master_info.get("location", "-"),
+            "htsc": master_info.get("htsc", "-"),
+            "order": master_info.get("order", 99)
         }
 
     print("Detected Current Data:", current_data)
