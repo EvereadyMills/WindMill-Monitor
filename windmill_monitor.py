@@ -10,8 +10,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 
-SCADA_LOGIN_URL = "https://www.scadasolution.co.in/scada/scada-login/"
-SCADA_PARKVIEW_URL = "https://www.scadasolution.co.in/scada/scada-parkview/"
+SCADA_LOGIN_URL = "[https://www.scadasolution.co.in/scada/scada-login/](https://www.scadasolution.co.in/scada/scada-login/)"
+SCADA_PARKVIEW_URL = "[https://www.scadasolution.co.in/scada/scada-parkview/](https://www.scadasolution.co.in/scada/scada-parkview/)"
 
 SCADA_USERNAME = os.environ.get("SCADA_USER")
 SCADA_PASSWORD = os.environ.get("SCADA_PASS")
@@ -29,11 +29,10 @@ def send_telegram_alert(full_message):
         print("❌ Telegram token/chat_id missing.")
         return
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    url = f"[https://api.telegram.org/bot](https://api.telegram.org/bot){TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
-        "text": full_message,
-        "parse_mode": "Markdown"
+        "text": full_message
     }
     try:
         response = requests.post(url, json=payload)
@@ -83,9 +82,10 @@ try:
             if text.startswith("SF") and len(text) <= 10:
                 htsc_number = text
 
-                # 1. ActionChains Hover on SF element
+                # Hover & Scroll to element
+                driver.execute_script("arguments[0].scrollIntoView(true);", el)
                 actions.move_to_element(el).perform()
-                time.sleep(1.5)  # Live data refresh aaga small wait
+                time.sleep(2.5)  # Live values load aaga 2.5 seconds wait பண்றோம்
 
                 status = "-"
                 ws = "-"
@@ -93,17 +93,15 @@ try:
                 rrpm = "-"
                 grpm = "-"
 
-                # 2. Extract Data from Dark Grey Popup Box
+                # Extract Popup Box Content
                 try:
-                    # Finds elements containing SCADA parameters
-                    popup_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status:') or contains(text(), 'W/S') or contains(text(), 'KW')]")
-                    
-                    for pop in popup_elements:
+                    popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status:') or contains(text(), 'Status :') or contains(text(), 'W/S') or contains(text(), 'KW')]")
+                    for pop in popups:
                         if pop.is_displayed():
                             lines = pop.text.split("\n")
                             for line in lines:
                                 l_str = line.strip()
-                                if "Status:" in l_str or "Status :" in l_str:
+                                if "Status" in l_str:
                                     status = l_str.split(":")[-1].strip()
                                 elif "W/S" in l_str or "w/s" in l_str:
                                     ws = l_str.split(":")[-1].strip()
@@ -117,7 +115,7 @@ try:
                 except Exception as hover_err:
                     print(f"Hover extract error for {htsc_number}:", hover_err)
 
-                # Fallback: Color-based status detection if popup status is missing
+                # Color-based Fallback for Status if text is missing
                 if status == "-":
                     try:
                         bg_color = el.value_of_css_property("background-color")
@@ -136,9 +134,9 @@ try:
                         elif "black" in combined or "battery" in combined:
                             status = "Battery"
                         else:
-                            status = "Running"
+                            status = "running"
                     except:
-                        status = "Running"
+                        status = "running"
 
                 current_data[htsc_number] = {
                     "status": status,
@@ -147,12 +145,13 @@ try:
                     "rrpm": rrpm,
                     "grpm": grpm
                 }
-        except Exception:
+        except Exception as elem_err:
+            print(f"Error reading element: {elem_err}")
             continue
 
     print("Detected Current Data:", current_data)
 
-    # Read Previous Turbine States
+    # Previous State Reading
     previous_states = {}
     if os.path.exists(STATE_FILE):
         try:
@@ -163,27 +162,27 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
-    # State Change Check
+    # State Change Detection
     state_changed = False
     if previous_states:
         for htsc, val in current_data.items():
             prev = previous_states.get(htsc)
             prev_status = prev.get("status") if isinstance(prev, dict) else prev
-            if prev_status != val["status"]:
+            if str(prev_status).lower() != str(val["status"]).lower():
                 state_changed = True
                 print(f"Status change detected for {htsc}: {prev_status} -> {val['status']}")
                 break
     else:
         state_changed = True
 
-    # Check 8:00 AM and 6:00 PM IST Schedule Time
+    # IST 8:00 AM & 6:00 PM Trigger Check
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
-    # Send Aggregated Telegram Message in Required Format
+    # Format output as Plain Normal Text (No Code Block formatting)
     if (state_changed or is_scheduled_report) and current_data:
-        msg_lines = ["```text"]
+        msg_lines = []
         for index, (htsc, val) in enumerate(current_data.items(), start=1):
             msg_lines.append(
                 f"{index}. Loc.No   : {htsc}\n"
@@ -193,13 +192,12 @@ try:
                 f"   RRPM     : {val['rrpm']}\n"
                 f"   GRPM     : {val['grpm']}\n"
             )
-        msg_lines.append("```")
 
         full_message = "\n".join(msg_lines)
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
 
-    # Save Current State Cache
+    # Save cache file
     if current_data:
         with open(STATE_FILE, "w") as f:
             json.dump(current_data, f, indent=4)
