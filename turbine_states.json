@@ -1,72 +1,72 @@
 {
     "SF 042": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "3.2",
+        "kw": "1.7",
+        "rrpm": "20.07",
         "grpm": "-"
     },
     "SF 101": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "3.6",
+        "kw": "27.2",
+        "rrpm": "18.80",
         "grpm": "-"
     },
     "SF 1019": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "4.9",
+        "kw": "0.5",
+        "rrpm": "20.08",
         "grpm": "-"
     },
     "SF 1023": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "2.8",
+        "kw": "3.0",
+        "rrpm": "20.26",
         "grpm": "-"
     },
     "SF 1078": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "2.8",
+        "kw": "0.0",
+        "rrpm": "18.79",
         "grpm": "-"
     },
     "SF 151": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "5.8",
+        "kw": "86.6",
+        "rrpm": "20.15",
         "grpm": "-"
     },
     "SF 154": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "4.7",
+        "kw": "17.1",
+        "rrpm": "20.32",
         "grpm": "-"
     },
     "SF 175": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "5.0",
+        "kw": "191.4",
+        "rrpm": "20.45",
         "grpm": "-"
     },
     "SF 244": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "0",
+        "ws": "3.3",
+        "kw": "-0.5",
+        "rrpm": "0.00",
         "grpm": "-"
     },
     "SF 523": {
-        "status": "running",
-        "ws": "-",
-        "kw": "-",
-        "rrpm": "-",
+        "status": "Run",
+        "ws": "2.1",
+        "kw": "-1.1",
+        "rrpm": "0.14",
         "grpm": "-"
     }
 }
