@@ -79,7 +79,6 @@ try:
 
     print("4. Identifying Windmill Numbers...")
     
-    # Text மூலமாக விண்ட்மில் எண்களை எடுத்தல்
     body_text = driver.find_element(By.TAG_NAME, "body").text
     sf_names = list(set(re.findall(r'SF\s*\d+', body_text)))
     sf_names = [re.sub(r'\s+', ' ', name) for name in sf_names]
@@ -88,6 +87,7 @@ try:
     print(f"Total Windmills Found: {len(sf_names)} -> {sf_names}")
 
     current_data = {}
+    actions = ActionChains(driver)
 
     for htsc_number in sf_names:
         status = "-"
@@ -98,55 +98,67 @@ try:
 
         for attempt in range(3):
             try:
-                # எலிமெண்ட்டை நேரடியாகத் தேடி எடுத்தல்
                 elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{htsc_number}')]")
                 if not elements:
                     break
                 
                 el = elements[0]
 
-                # JS DispatchEvent மூலம் Mouseover தூண்டுதல் (Stale அவாய்ட் செய்ய)
+                # Scroll to element and hover via ActionChains & JS
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
+                time.sleep(0.5)
+
+                try:
+                    actions.move_to_element(el).perform()
+                except:
+                    pass
+
                 driver.execute_script("""
                     var elem = arguments[0];
-                    var mouseOverEvent = new MouseEvent('mouseover', {
-                        'view': window,
-                        'bubbles': true,
-                        'cancelable': true
+                    var events = ['mouseover', 'mouseenter', 'mousemove'];
+                    events.forEach(function(evt) {
+                        var event = new MouseEvent(evt, {
+                            'view': window,
+                            'bubbles': true,
+                            'cancelable': true
+                        });
+                        elem.dispatchEvent(event);
                     });
-                    elem.dispatchEvent(mouseOverEvent);
                 """, el)
                 
-                time.sleep(2) # Pop-up தோன்றும் வரை காத்திருத்தல்
+                time.sleep(2.5) # Wait for hover tooltip to populate data
 
-                # Pop-up விவரங்களைப் படித்தல்
-                popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'W/S') or contains(text(), 'KW') or contains(text(), 'RRPM')]")
+                # Extract text from visible tooltip / entire page text after hover
+                page_src = driver.find_element(By.TAG_NAME, "body").text
+                
+                # Check all popups or elements containing technical keywords
+                popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'KW') or contains(text(), 'W/S') or contains(text(), 'RRPM')]")
+                
                 for pop in popups:
                     try:
-                        p_text = pop.text
-                        if "Status" in p_text or "W/S" in p_text:
+                        p_text = pop.text.strip()
+                        if p_text:
                             lines = p_text.split("\n")
                             for line in lines:
-                                l_str = line.strip()
-                                if "Status" in l_str and ":" in l_str:
-                                    status = l_str.split(":")[-1].strip()
-                                elif "W/S" in l_str or "w/s" in l_str:
-                                    ws = l_str.split(":")[-1].strip()
-                                elif "KW" in l_str or "kw" in l_str:
-                                    kw = l_str.split(":")[-1].strip()
-                                elif "RRPM" in l_str:
-                                    rrpm = l_str.split(":")[-1].strip()
-                                elif "GRPM" in l_str:
-                                    grpm = l_str.split(":")[-1].strip()
-                            if status != "-" or ws != "-":
-                                break
+                                line_clean = line.strip()
+                                if "Status" in line_clean and ":" in line_clean:
+                                    status = line_clean.split(":")[-1].strip()
+                                elif ("W/S" in line_clean or "w/s" in line_clean) and ":" in line_clean:
+                                    ws = line_clean.split(":")[-1].strip()
+                                elif ("KW" in line_clean or "kw" in line_clean) and ":" in line_clean:
+                                    kw = line_clean.split(":")[-1].strip()
+                                elif "RRPM" in line_clean and ":" in line_clean:
+                                    rrpm = line_clean.split(":")[-1].strip()
+                                elif "GRPM" in line_clean and ":" in line_clean:
+                                    grpm = line_clean.split(":")[-1].strip()
                     except:
                         continue
 
-                # Background Color Fallback
+                # Status Fallback checking element style/color
                 if status == "-":
                     try:
                         bg = el.value_of_css_property("background-color")
-                        if "230, 0, 0" in bg or "red" in bg:
+                        if "230, 0, 0" in bg or "255, 0, 0" in bg or "red" in bg:
                             status = "Emergency"
                         elif "230, 204, 0" in bg or "yellow" in bg:
                             status = "stop"
@@ -155,7 +167,7 @@ try:
                     except:
                         status = "running"
                 
-                break # வெற்றி பெற்றால் Loop-ஐ விட்டு வெளியேறுதல்
+                break
 
             except Exception as retry_err:
                 time.sleep(1)
