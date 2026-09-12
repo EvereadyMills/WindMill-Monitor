@@ -9,8 +9,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 SCADA_LOGIN_URL = "https://www.scadasolution.co.in/scada/scada-login/"
 SCADA_PARKVIEW_URL = "https://www.scadasolution.co.in/scada/scada-parkview/"
@@ -70,38 +68,43 @@ try:
     
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
-    
-    # Page-இல் உள்ள அனைத்து Windmill பட்டன்களும் லோட் ஆகும் வரை 15 வினாடிகள் காத்திருத்தல்
-    time.sleep(12)
+    time.sleep(10)
 
-    current_data = {}
+    # 1. முதலில் பக்கத்தில் உள்ள அனைத்து SF விண்ட்மில் பெயர்களை மட்டும் கண்டுபிடிக்கிறோம்
+    print("4. Identifying Windmill Names...")
+    raw_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]") or []
+    sf_names = []
     
-    print("4. Searching Windmill Elements & Fetching Live Popup Data...")
-    
-    # SF எனத் தொடங்கும் அனைத்து HTML elements-ஐயும் துல்லியமாக எடுத்தல்
-    elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]") or []
-    actions = ActionChains(driver)
-
-    valid_elements = []
-    for el in elements:
+    for item in raw_elements:
         try:
-            txt = el.text.strip()
-            if txt.startswith("SF") and len(txt) <= 10 and txt not in [item[0] for item in valid_elements]:
-                valid_elements.append((txt, el))
+            txt = item.text.strip()
+            if txt.startswith("SF") and len(txt) <= 10 and txt not in sf_names:
+                sf_names.append(txt)
         except:
             continue
 
-    print(f"Total Windmills Found: {len(valid_elements)}")
+    print(f"Total Windmills Found: {len(sf_names)} -> {sf_names}")
 
-    for htsc_number, el in valid_elements:
+    current_data = {}
+    actions = ActionChains(driver)
+
+    # 2. ஒவ்வொரு Windmill பெயருக்கும் நேரலையில் (Fresh) Element-ஐக் கண்டுபிடித்து Hover செய்கிறோம்
+    for htsc_number in sf_names:
         try:
-            # 1. Element-க்கு Scroll செய்து Hover செய்தல்
+            # Stale Element ஆவதைத் தவிர்க்க ஒவ்வொரு முறையும் Fresh Element தேடுகிறோம்
+            fresh_elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{htsc_number}')]")
+            if not fresh_elements:
+                continue
+            
+            el = fresh_elements[0]
+
+            # Hover செய்ய Scroll மற்றும் ActionChains
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
             time.sleep(1)
             actions.move_to_element(el).perform()
             
-            # Pop-up வந்து Data load ஆக 3 செகண்ட் வெயிட் செய்கிறோம்
-            time.sleep(3)
+            # Pop-up வந்து Data refresh ஆக 2.5 நொடிகள் காத்திருத்தல்
+            time.sleep(2.5)
 
             status = "-"
             ws = "-"
@@ -109,13 +112,12 @@ try:
             rrpm = "-"
             grpm = "-"
 
-            # 2. Pop-up Box-இல் உள்ள Live Text-ஐ பிரித்தெடுத்தல்
+            # Pop-up Box-இல் உள்ள நேரலைத் தரவுகளைப் பிரித்தெடுத்தல்
             try:
                 popup_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'W/S') or contains(text(), 'KW')]")
                 for pop in popup_elements:
                     if pop.is_displayed():
-                        full_txt = pop.text
-                        lines = full_txt.split("\n")
+                        lines = pop.text.split("\n")
                         for line in lines:
                             l_str = line.strip()
                             if "Status" in l_str and ":" in l_str:
@@ -132,7 +134,7 @@ try:
             except Exception as h_err:
                 print(f"Hover error on {htsc_number}:", h_err)
 
-            # Text கிடைக்கவில்லை என்றால் Color மூலம் Status அறிதல்
+            # Pop-up text கிடைக்கவில்லையெனில் Color-based status
             if status == "-":
                 try:
                     bg = el.value_of_css_property("background-color")
@@ -158,7 +160,7 @@ try:
 
     print("Detected Current Data:", current_data)
 
-    # Cache File வாசித்தல்
+    # Previous State Reading
     previous_states = {}
     if os.path.exists(STATE_FILE):
         try:
@@ -169,7 +171,7 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
-    # Status மாறுபாடு உள்ளதா எனக் கண்டறிதல்
+    # State Change Detection
     state_changed = False
     if previous_states:
         for htsc, val in current_data.items():
@@ -182,12 +184,12 @@ try:
     else:
         state_changed = True
 
-    # 8 AM / 6 PM Scheduled Time Check
+    # 8 AM & 6 PM IST Check
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
-    # Normal Text Message Sending
+    # Plain Text Normal Message Format (Code block நீக்கப்பட்டது)
     if (state_changed or is_scheduled_report) and current_data:
         msg_lines = []
         for index, (htsc, val) in enumerate(current_data.items(), start=1):
