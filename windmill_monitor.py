@@ -9,9 +9,11 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-SCADA_LOGIN_URL = "[https://www.scadasolution.co.in/scada/scada-login/](https://www.scadasolution.co.in/scada/scada-login/)"
-SCADA_PARKVIEW_URL = "[https://www.scadasolution.co.in/scada/scada-parkview/](https://www.scadasolution.co.in/scada/scada-parkview/)"
+SCADA_LOGIN_URL = "https://www.scadasolution.co.in/scada/scada-login/"
+SCADA_PARKVIEW_URL = "https://www.scadasolution.co.in/scada/scada-parkview/"
 
 SCADA_USERNAME = os.environ.get("SCADA_USER")
 SCADA_PASSWORD = os.environ.get("SCADA_PASS")
@@ -29,7 +31,7 @@ def send_telegram_alert(full_message):
         print("❌ Telegram token/chat_id missing.")
         return
 
-    url = f"[https://api.telegram.org/bot](https://api.telegram.org/bot){TELEGRAM_BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
         "text": full_message
@@ -68,90 +70,95 @@ try:
     
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
-    time.sleep(8)
+    
+    # Page-இல் உள்ள அனைத்து Windmill பட்டன்களும் லோட் ஆகும் வரை 15 வினாடிகள் காத்திருத்தல்
+    time.sleep(12)
 
     current_data = {}
     
     print("4. Searching Windmill Elements & Fetching Live Popup Data...")
+    
+    # SF எனத் தொடங்கும் அனைத்து HTML elements-ஐயும் துல்லியமாக எடுத்தல்
     elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'SF')]") or []
     actions = ActionChains(driver)
 
+    valid_elements = []
     for el in elements:
         try:
-            text = el.text.strip()
-            if text.startswith("SF") and len(text) <= 10:
-                htsc_number = text
+            txt = el.text.strip()
+            if txt.startswith("SF") and len(txt) <= 10 and txt not in [item[0] for item in valid_elements]:
+                valid_elements.append((txt, el))
+        except:
+            continue
 
-                # Hover & Scroll to element
-                driver.execute_script("arguments[0].scrollIntoView(true);", el)
-                actions.move_to_element(el).perform()
-                time.sleep(2.5)  # Live values load aaga 2.5 seconds wait பண்றோம்
+    print(f"Total Windmills Found: {len(valid_elements)}")
 
-                status = "-"
-                ws = "-"
-                kw = "-"
-                rrpm = "-"
-                grpm = "-"
+    for htsc_number, el in valid_elements:
+        try:
+            # 1. Element-க்கு Scroll செய்து Hover செய்தல்
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
+            time.sleep(1)
+            actions.move_to_element(el).perform()
+            
+            # Pop-up வந்து Data load ஆக 3 செகண்ட் வெயிட் செய்கிறோம்
+            time.sleep(3)
 
-                # Extract Popup Box Content
+            status = "-"
+            ws = "-"
+            kw = "-"
+            rrpm = "-"
+            grpm = "-"
+
+            # 2. Pop-up Box-இல் உள்ள Live Text-ஐ பிரித்தெடுத்தல்
+            try:
+                popup_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status') or contains(text(), 'W/S') or contains(text(), 'KW')]")
+                for pop in popup_elements:
+                    if pop.is_displayed():
+                        full_txt = pop.text
+                        lines = full_txt.split("\n")
+                        for line in lines:
+                            l_str = line.strip()
+                            if "Status" in l_str and ":" in l_str:
+                                status = l_str.split(":")[-1].strip()
+                            elif "W/S" in l_str or "w/s" in l_str:
+                                ws = l_str.split(":")[-1].strip()
+                            elif "KW" in l_str or "kw" in l_str:
+                                kw = l_str.split(":")[-1].strip()
+                            elif "RRPM" in l_str:
+                                rrpm = l_str.split(":")[-1].strip()
+                            elif "GRPM" in l_str:
+                                grpm = l_str.split(":")[-1].strip()
+                        break
+            except Exception as h_err:
+                print(f"Hover error on {htsc_number}:", h_err)
+
+            # Text கிடைக்கவில்லை என்றால் Color மூலம் Status அறிதல்
+            if status == "-":
                 try:
-                    popups = driver.find_elements(By.XPATH, "//*[contains(text(), 'Status:') or contains(text(), 'Status :') or contains(text(), 'W/S') or contains(text(), 'KW')]")
-                    for pop in popups:
-                        if pop.is_displayed():
-                            lines = pop.text.split("\n")
-                            for line in lines:
-                                l_str = line.strip()
-                                if "Status" in l_str:
-                                    status = l_str.split(":")[-1].strip()
-                                elif "W/S" in l_str or "w/s" in l_str:
-                                    ws = l_str.split(":")[-1].strip()
-                                elif "KW" in l_str or "kw" in l_str:
-                                    kw = l_str.split(":")[-1].strip()
-                                elif "RRPM" in l_str:
-                                    rrpm = l_str.split(":")[-1].strip()
-                                elif "GRPM" in l_str:
-                                    grpm = l_str.split(":")[-1].strip()
-                            break
-                except Exception as hover_err:
-                    print(f"Hover extract error for {htsc_number}:", hover_err)
-
-                # Color-based Fallback for Status if text is missing
-                if status == "-":
-                    try:
-                        bg_color = el.value_of_css_property("background-color")
-                        parent = el.find_element(By.XPATH, "./..")
-                        parent_bg = parent.value_of_css_property("background-color")
-                        combined = f"{bg_color} {parent_bg} {el.get_attribute('style')} {parent.get_attribute('style')}".lower()
-
-                        if "230, 0, 0" in combined or "red" in combined or "e60000" in combined:
-                            status = "Emergency"
-                        elif "230, 204, 0" in combined or "yellow" in combined or "e6cc00" in combined:
-                            status = "stop"
-                        elif "pause" in combined or "7c9fae" in combined:
-                            status = "pause"
-                        elif "poweroff" in combined or "6ec1fa" in combined:
-                            status = "poweroff"
-                        elif "black" in combined or "battery" in combined:
-                            status = "Battery"
-                        else:
-                            status = "running"
-                    except:
+                    bg = el.value_of_css_property("background-color")
+                    if "230, 0, 0" in bg or "red" in bg:
+                        status = "Emergency"
+                    elif "230, 204, 0" in bg or "yellow" in bg:
+                        status = "stop"
+                    else:
                         status = "running"
+                except:
+                    status = "running"
 
-                current_data[htsc_number] = {
-                    "status": status,
-                    "ws": ws,
-                    "kw": kw,
-                    "rrpm": rrpm,
-                    "grpm": grpm
-                }
-        except Exception as elem_err:
-            print(f"Error reading element: {elem_err}")
+            current_data[htsc_number] = {
+                "status": status,
+                "ws": ws,
+                "kw": kw,
+                "rrpm": rrpm,
+                "grpm": grpm
+            }
+        except Exception as err:
+            print(f"Error processing {htsc_number}:", err)
             continue
 
     print("Detected Current Data:", current_data)
 
-    # Previous State Reading
+    # Cache File வாசித்தல்
     previous_states = {}
     if os.path.exists(STATE_FILE):
         try:
@@ -162,7 +169,7 @@ try:
         except Exception as read_err:
             print("Fresh start:", read_err)
 
-    # State Change Detection
+    # Status மாறுபாடு உள்ளதா எனக் கண்டறிதல்
     state_changed = False
     if previous_states:
         for htsc, val in current_data.items():
@@ -175,12 +182,12 @@ try:
     else:
         state_changed = True
 
-    # IST 8:00 AM & 6:00 PM Trigger Check
+    # 8 AM / 6 PM Scheduled Time Check
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
-    # Format output as Plain Normal Text (No Code Block formatting)
+    # Normal Text Message Sending
     if (state_changed or is_scheduled_report) and current_data:
         msg_lines = []
         for index, (htsc, val) in enumerate(current_data.items(), start=1):
@@ -197,7 +204,7 @@ try:
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
 
-    # Save cache file
+    # Cache சேமித்தல்
     if current_data:
         with open(STATE_FILE, "w") as f:
             json.dump(current_data, f, indent=4)
