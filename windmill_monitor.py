@@ -4,7 +4,7 @@ import time
 import re
 import traceback
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -19,7 +19,7 @@ SCADA_PASSWORD = os.environ.get("SCADA_PASS")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# GitHub Secret-இல் இருந்து Master Data-வை இரகசியமாகப் பெறுகிறது
+# GitHub Secret-இல் இருந்து Master Data-வை பெறுகிறது
 raw_master_data = os.environ.get("MASTER_DATA_JSON")
 MASTER_DATA = {}
 if raw_master_data:
@@ -50,6 +50,60 @@ def send_telegram_alert(full_message):
         print("Telegram API Response:", response.text)
     except Exception as e:
         print("Telegram Error:", e)
+
+# ---------------- NEW PDF SENDING FUNCTION ----------------
+def send_yesterday_dgr_pdf(session):
+    ist = pytz.timezone('Asia/Kolkata')
+    yesterday = (datetime.now(ist) - timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    url = "https://www.scadasolution.co.in/scada/garden/PdfOut/"
+    
+    payload = {
+        'pos1': '1',
+        'pos2': yesterday,
+        'pos3': yesterday,
+        'pos4': '4',
+        'pos5': '5',
+        'pos6': 'ALL-TURBINES',
+        'pos7': '1~SF 042~Tamilnadu~Theni~4~850~Renom',
+        'pos8': '0',
+        'pos9': '0',
+        'pdfsub': ''
+    }
+    
+    try:
+        print(f"📄 Fetching DGR PDF for date: {yesterday}...")
+        response = session.post(url, data=payload)
+        
+        if response.status_code == 200 and len(response.content) > 0:
+            pdf_filename = f"DGR_Report_{yesterday}.pdf"
+            
+            with open(pdf_filename, "wb") as f:
+                f.write(response.content)
+            
+            telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+            with open(pdf_filename, "rb") as pdf_file:
+                files = {"document": pdf_file}
+                data = {
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "caption": f"📄 <b>ALL-TURBINES Date Report ({yesterday})</b>",
+                    "parse_mode": "HTML"
+                }
+                res = requests.post(telegram_url, data=data, files=files)
+                
+                if res.status_code == 200:
+                    print(f"✅ Successfully sent DGR PDF for {yesterday} to Telegram!")
+                else:
+                    print(f"❌ Failed to send PDF to Telegram: {res.text}")
+            
+            if os.path.exists(pdf_filename):
+                os.remove(pdf_filename)
+        else:
+            print(f"❌ Failed to fetch PDF. Status Code: {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error while fetching/sending PDF: {e}")
+# ---------------------------------------------------------
 
 def normalize_status(raw_status, bg_color=""):
     s = str(raw_status).strip().lower()
@@ -92,7 +146,6 @@ def format_clean_message(data):
         loc = item.get("location", "-")
         order = item.get("order", "-")
 
-        # Location மாறும் போது Heading சேர்க்கப்படும்
         if loc != current_location:
             current_location = loc
             lines.append(f"📍 <b>Location: {current_location}</b>\n")
@@ -132,6 +185,11 @@ try:
     print("2. Logged in successfully.")
     
     time.sleep(6)
+
+    # Browser Session-ஐ Requests Session-க்கு மாற்றி PDF எடுக்கிறோம்
+    session = requests.Session()
+    for cookie in driver.get_cookies():
+        session.cookies.set(cookie['name'], cookie['value'])
     
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
@@ -269,11 +327,15 @@ try:
     now_ist = datetime.now(ist)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
-    # Send Notification
+    # Send Text Notification
     if (state_changed or is_scheduled_report) and current_data:
         full_message = format_clean_message(current_data)
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
+
+    # Daily PDF Report - தினமும் காலை 8 மணி அறிக்கை வரும்போது PDF-யும் அனுப்பும்
+    if is_scheduled_report and now_ist.hour == 8:
+        send_yesterday_dgr_pdf(session)
 
     # Save current state
     if current_data:
