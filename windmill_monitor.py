@@ -51,7 +51,7 @@ def send_telegram_alert(full_message):
     except Exception as e:
         print("Telegram Error:", e)
 
-# ---------------- NEW PDF SENDING FUNCTION ----------------
+# ---------------- PDF SENDING FUNCTION ----------------
 def send_yesterday_dgr_pdf(session):
     ist = pytz.timezone('Asia/Kolkata')
     yesterday = (datetime.now(ist) - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -73,9 +73,18 @@ def send_yesterday_dgr_pdf(session):
     
     try:
         print(f"📄 Fetching DGR PDF for date: {yesterday}...")
-        response = session.post(url, data=payload)
         
-        if response.status_code == 200 and len(response.content) > 0:
+        # Adding headers to mimic browser request
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.scadasolution.co.in/scada/garden/reports/'
+        }
+        
+        response = session.post(url, data=payload, headers=headers)
+        
+        print(f"PDF Request Status Code: {response.status_code}, Length: {len(response.content)}")
+        
+        if response.status_code == 200 and len(response.content) > 1000:
             pdf_filename = f"DGR_Report_{yesterday}.pdf"
             
             with open(pdf_filename, "wb") as f:
@@ -99,7 +108,7 @@ def send_yesterday_dgr_pdf(session):
             if os.path.exists(pdf_filename):
                 os.remove(pdf_filename)
         else:
-            print(f"❌ Failed to fetch PDF. Status Code: {response.status_code}")
+            print("❌ Failed to fetch PDF. Response content might be empty or invalid html.")
             
     except Exception as e:
         print(f"❌ Error while fetching/sending PDF: {e}")
@@ -186,11 +195,14 @@ try:
     
     time.sleep(6)
 
-    # Browser Session-ஐ Requests Session-க்கு மாற்றி PDF எடுக்கிறோம்
+    # Session Transfer from Selenium to Requests
     session = requests.Session()
     for cookie in driver.get_cookies():
         session.cookies.set(cookie['name'], cookie['value'])
-    
+
+    # Test-க்காக இப்போது மேனுவலாக Run பண்ணினாலும் PDF அனுப்பும்
+    send_yesterday_dgr_pdf(session)
+
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
     time.sleep(12)
@@ -332,10 +344,6 @@ try:
         full_message = format_clean_message(current_data)
         print("Sending aggregated Telegram notification...")
         send_telegram_alert(full_message)
-
-    # Daily PDF Report - தினமும் காலை 8 மணி அறிக்கை வரும்போது PDF-யும் அனுப்பும்
-    if is_scheduled_report and now_ist.hour == 8:
-        send_yesterday_dgr_pdf(session)
 
     # Save current state
     if current_data:
