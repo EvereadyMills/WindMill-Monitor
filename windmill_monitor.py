@@ -130,12 +130,19 @@ def normalize_status(raw_status, bg_color=""):
         return "Running"
         
     bg = bg_color.lower()
+    # Red -> Emergency
     if "230, 0, 0" in bg or "255, 0, 0" in bg or "red" in bg:
         return "Emergency"
+    # Yellow / Orange -> Stop
     elif "230, 204, 0" in bg or "yellow" in bg or "orange" in bg:
         return "Stop"
+    # Light Blue / Cyan / Sky Blue -> Power Off (SF 523 போன்றவற்றுக்கு)
+    elif "135, 206" in bg or "100, 149" in bg or "cyan" in bg or "lightblue" in bg or "sky" in bg or "110, 180" in bg:
+        return "Power Off"
+    # Dark Blue -> Pause
     elif "0, 0, 255" in bg or "blue" in bg:
         return "Pause"
+    # Green -> Running
     elif "0, 128, 0" in bg or "green" in bg:
         return "Running"
         
@@ -201,8 +208,8 @@ try:
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
 
-    # ⏰ 1. PDF Report Logic: தினமும் காலை 8:00 AM IST (8:00 - 8:15 இடையே) மட்டுமே PDF அனுப்பும்
-    if now_ist.hour == 8 and now_ist.minute < 15:
+    # ⏰ 1. PDF Report Logic: தினமும் காலை 8:00 AM IST (8:00 - 8:30 இடையே) மட்டுமே PDF அனுப்பும்
+    if now_ist.hour == 8 and now_ist.minute < 30:
         print("⏰ Morning 8 AM detected. Executing DGR PDF sending task...")
         send_yesterday_dgr_pdf(session)
 
@@ -338,7 +345,7 @@ try:
         state_changed = True
 
     # Scheduled Check (8 AM & 6 PM IST)
-    is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
+    is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 30)
 
     # Send Text Notification
     if (state_changed or is_scheduled_report) and current_data:
