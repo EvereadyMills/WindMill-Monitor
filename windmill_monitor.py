@@ -208,8 +208,8 @@ try:
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
 
-    # ⏰ 1. PDF Report Logic: தினமும் காலை 8:00 AM IST (8:00 - 8:30 இடையே) மட்டுமே PDF அனுப்பும்
-    if now_ist.hour == 8 and now_ist.minute < 30:
+    # ⏰ 1. PDF Report Logic: தினமும் காலை 8:00 AM IST (8:00 - 8:14 இடையே மட்டும்)
+    if now_ist.hour == 8 and now_ist.minute < 15:
         print("⏰ Morning 8 AM detected. Executing DGR PDF sending task...")
         send_yesterday_dgr_pdf(session)
 
@@ -344,8 +344,8 @@ try:
     else:
         state_changed = True
 
-    # Scheduled Check (8 AM & 6 PM IST)
-    is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 30)
+    # Scheduled Check (8:00 AM & 6:00 PM IST - முதல் 15 நிமிடங்களுக்குள் மட்டும்)
+    is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
     # Send Text Notification
     if (state_changed or is_scheduled_report) and current_data:
