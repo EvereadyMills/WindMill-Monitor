@@ -208,9 +208,10 @@ try:
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
 
-    # ⏰ 1. Force Send Yesterday DGR PDF (Manual Run Execution)
-    print("⏰ Executing DGR PDF sending task...")
-    send_yesterday_dgr_pdf(session)
+    # ⏰ 1. PDF Report Logic: தினமும் காலை 8:00 AM IST (8:00 - 8:14 இடையே மட்டும்)
+    if now_ist.hour == 8 and now_ist.minute < 15:
+        print("⏰ Morning 8 AM detected. Executing DGR PDF sending task...")
+        send_yesterday_dgr_pdf(session)
 
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
