@@ -2,21 +2,43 @@
     "SF 101": {
         "name": "SF 101",
         "status": "Running",
-        "ws": "11.7",
-        "kw": "819.7",
-        "rrpm": "27.24",
-        "grpm": "1679.04",
+        "ws": "11.0",
+        "kw": "817.6",
+        "rrpm": "25.77",
+        "grpm": "1601.62",
         "location": "Theni",
         "htsc": "059224760031",
         "order": 2
     },
+    "SF 1019": {
+        "name": "SF 1019",
+        "status": "Running",
+        "ws": "11.3",
+        "kw": "605.8",
+        "rrpm": "26.11",
+        "grpm": "1619.16",
+        "location": "Palladam",
+        "htsc": "039224391943",
+        "order": 10
+    },
+    "SF 154": {
+        "name": "SF 154",
+        "status": "Running",
+        "ws": "7.9",
+        "kw": "388.1",
+        "rrpm": "23.99",
+        "grpm": "1482.42",
+        "location": "Theni",
+        "htsc": "059224760064",
+        "order": 5
+    },
     "SF 244": {
         "name": "SF 244",
         "status": "Running",
-        "ws": "11.5",
-        "kw": "868.5",
-        "rrpm": "26.04",
-        "grpm": "1607.77",
+        "ws": "6.6",
+        "kw": "395.0",
+        "rrpm": "24.50",
+        "grpm": "1515.23",
         "location": "Palladam",
         "htsc": "039224391807",
         "order": 6
@@ -24,10 +46,10 @@
     "SF 042": {
         "name": "SF 042",
         "status": "Running",
-        "ws": "11.2",
-        "kw": "618.0",
-        "rrpm": "26.04",
-        "grpm": "1614.12",
+        "ws": "13.8",
+        "kw": "858.6",
+        "rrpm": "26.63",
+        "grpm": "1644.72",
         "location": "Theni",
         "htsc": "059224760045",
         "order": 3
@@ -35,35 +57,24 @@
     "SF 175": {
         "name": "SF 175",
         "status": "Running",
-        "ws": "14.0",
-        "kw": "882.1",
-        "rrpm": "26.27",
-        "grpm": "1631.48",
+        "ws": "12.6",
+        "kw": "872.5",
+        "rrpm": "26.22",
+        "grpm": "1624.69",
         "location": "Theni",
         "htsc": "059224760030",
         "order": 1
     },
-    "SF 1019": {
-        "name": "SF 1019",
-        "status": "Running",
-        "ws": "15.4",
-        "kw": "856.8",
-        "rrpm": "27.07",
-        "grpm": "1667.56",
+    "SF 523": {
+        "name": "SF 523",
+        "status": "Emergency",
+        "ws": "12.9",
+        "kw": "-0.6",
+        "rrpm": "0.00",
+        "grpm": "0.00",
         "location": "Palladam",
-        "htsc": "039224391943",
-        "order": 10
-    },
-    "SF 1023": {
-        "name": "SF 1023",
-        "status": "Running",
-        "ws": "10.8",
-        "kw": "846.7",
-        "rrpm": "26.16",
-        "grpm": "1616.80",
-        "location": "Palladam",
-        "htsc": "039224391942",
-        "order": 9
+        "htsc": "039224391808",
+        "order": 7
     },
     "SF 1078": {
         "name": "SF 1078",
@@ -76,37 +87,26 @@
         "htsc": "039224391941",
         "order": 8
     },
-    "SF 523": {
-        "name": "SF 523",
-        "status": "Emergency",
-        "ws": "11.3",
-        "kw": "-0.5",
-        "rrpm": "0.00",
-        "grpm": "0.00",
-        "location": "Palladam",
-        "htsc": "039224391808",
-        "order": 7
-    },
-    "SF 154": {
-        "name": "SF 154",
-        "status": "Running",
-        "ws": "10.8",
-        "kw": "874.2",
-        "rrpm": "26.50",
-        "grpm": "1628.77",
-        "location": "Theni",
-        "htsc": "059224760064",
-        "order": 5
-    },
     "SF 151": {
         "name": "SF 151",
         "status": "Running",
-        "ws": "10.3",
-        "kw": "555.7",
-        "rrpm": "26.04",
-        "grpm": "1610.67",
+        "ws": "10.9",
+        "kw": "723.7",
+        "rrpm": "26.46",
+        "grpm": "1616.09",
         "location": "Theni",
         "htsc": "059224760060",
         "order": 4
+    },
+    "SF 1023": {
+        "name": "SF 1023",
+        "status": "Running",
+        "ws": "13.6",
+        "kw": "847.9",
+        "rrpm": "26.63",
+        "grpm": "1645.22",
+        "location": "Palladam",
+        "htsc": "039224391942",
+        "order": 9
     }
 }
