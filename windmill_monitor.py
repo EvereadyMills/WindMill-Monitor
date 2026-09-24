@@ -19,7 +19,6 @@ SCADA_PASSWORD = os.environ.get("SCADA_PASS")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# GitHub Secret-இல் இருந்து Master Data-வை பெறுகிறது
 raw_master_data = os.environ.get("MASTER_DATA_JSON")
 MASTER_DATA = {}
 if raw_master_data:
@@ -105,7 +104,7 @@ def send_yesterday_dgr_pdf(session):
             if os.path.exists(pdf_filename):
                 os.remove(pdf_filename)
         else:
-            print("❌ Failed to fetch PDF or empty response.")
+            print("❌ Failed to fetch PDF or empty response (Size too small or error).")
             
     except Exception as e:
         print(f"❌ Error while fetching/sending PDF: {e}")
@@ -130,19 +129,14 @@ def normalize_status(raw_status, bg_color=""):
         return "Running"
         
     bg = bg_color.lower()
-    # Red -> Emergency
     if "230, 0, 0" in bg or "255, 0, 0" in bg or "red" in bg:
         return "Emergency"
-    # Yellow / Orange -> Stop
     elif "230, 204, 0" in bg or "yellow" in bg or "orange" in bg:
         return "Stop"
-    # Light Blue / Cyan / Sky Blue -> Power Off (SF 523 போன்றவற்றுக்கு)
     elif "135, 206" in bg or "100, 149" in bg or "cyan" in bg or "lightblue" in bg or "sky" in bg or "110, 180" in bg:
         return "Power Off"
-    # Dark Blue -> Pause
     elif "0, 0, 255" in bg or "blue" in bg:
         return "Pause"
-    # Green -> Running
     elif "0, 128, 0" in bg or "green" in bg:
         return "Running"
         
@@ -204,14 +198,15 @@ try:
     for cookie in driver.get_cookies():
         session.cookies.set(cookie['name'], cookie['value'])
 
-    # Time Calculation for Scheduled Actions
+    # Time Calculation
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
 
-    # ⏰ 1. PDF Report Logic: தினமும் காலை 8:00 AM IST (8:00 - 8:14 இடையே மட்டும்)
+    # ⏰ 1. PDF Report Logic: காலை 8 மணி என்றால் (மினிட்ஸ் 0 முதல் 15க்குள்) முகம் சுளிக்காமல் PDF போகும்
     if now_ist.hour == 8 and now_ist.minute < 15:
-        print("⏰ Morning 8 AM detected. Executing DGR PDF sending task...")
+        print("⏰ Morning 8 AM window detected. Executing DGR PDF sending task FIRST...")
         send_yesterday_dgr_pdf(session)
+        time.sleep(3) # PDF சம்மந்தப்பட்ட ரிக்வெஸ்ட் முடிந்து லோட் ஆக சிறிது அவகாசம்
 
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
@@ -344,7 +339,7 @@ try:
     else:
         state_changed = True
 
-    # Scheduled Check (8:00 AM & 6:00 PM IST - முதல் 15 நிமிடங்களுக்குள் மட்டும்)
+    # Scheduled Check (8:00 AM & 6:00 PM IST)
     is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
 
     # Send Text Notification
