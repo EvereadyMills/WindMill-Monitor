@@ -2,18 +2,27 @@ name: Windmill Monitor
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # Every 15 mins, avoiding :00 (GitHub delays/skips top-of-hour runs)
+    - cron: '5,20,35,50 * * * *'
   workflow_dispatch:
+
+# Never let two runs overlap (prevents double PDF / double report)
+concurrency:
+  group: windmill-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   run-monitor:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -34,10 +43,12 @@ jobs:
           MASTER_DATA_JSON: ${{ secrets.MASTER_DATA_JSON }}
         run: python windmill_monitor.py
 
-      - name: Commit and Push updated state file
+      - name: Commit and Push updated state files
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add turbine_states.json || true
+          git add report_log.json || true
           git commit -m "Update turbine states" || exit 0
+          git pull --rebase || true
           git push
