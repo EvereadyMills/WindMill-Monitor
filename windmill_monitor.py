@@ -354,7 +354,8 @@ try:
     new_state = dict(current_data)
 
     # ⚠️ 2. Status change -> separate message for EACH changed windmill only,
-    #       and only when the new status is Running / Power Off / Emergency
+    #       when the new status is Running / Power Off / Emergency,
+    #       or when the windmill stops Running
     if previous_states:
         for htsc, val in current_data.items():
             prev = previous_states.get(htsc)
@@ -370,7 +371,9 @@ try:
                 continue
 
             print(f"Status change detected for {htsc}: {prev_status} -> {new_status}")
-            if new_status.lower() not in ALERT_STATUSES:
+            # Message if the NEW status is Running / Power Off / Emergency,
+            # OR the windmill has just LEFT Running (e.g. Running -> Stop)
+            if new_status.lower() not in ALERT_STATUSES and prev_status.lower() != "running":
                 print("   (not Running / Power Off / Emergency - no message)")
                 continue
             if not send_telegram_alert(format_clean_message({htsc: val})):
