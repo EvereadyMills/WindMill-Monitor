@@ -33,30 +33,57 @@ if not SCADA_USERNAME or not SCADA_PASSWORD:
     print("❌ ERROR: SCADA_USER or SCADA_PASS is missing in Environment Variables!")
     exit(1)
 
+REPORT_LOG_FILE = "report_log.json"   # remembers which PDF / reports were already sent today
+
+# Status change alert is sent ONLY when the new status is one of these
+ALERT_STATUSES = {"running", "power off", "emergency"}
+
+
+def load_json_file(path):
+    if os.path.exists(path):
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception as e:
+            print(f"Could not read {path}, starting fresh:", e)
+    return {}
+
+
+def save_json_file(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=4)
+
+
 def send_telegram_alert(full_message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("❌ Telegram token/chat_id missing.")
-        return
+        return False
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID, 
+        "chat_id": TELEGRAM_CHAT_ID,
         "text": full_message,
         "parse_mode": "HTML"
     }
     try:
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=30)
         print("Telegram API Response:", response.text)
+        return response.status_code == 200
     except Exception as e:
         print("Telegram Error:", e)
+        return False
+
 
 # ---------------- DGR PDF SENDING FUNCTION ----------------
+# Returns True only when the PDF actually reached Telegram.
 def send_yesterday_dgr_pdf(session):
     ist = pytz.timezone('Asia/Kolkata')
     yesterday = (datetime.now(ist) - timedelta(days=1)).strftime("%Y-%m-%d")
-    
+
     url = "https://www.scadasolution.co.in/scada/garden/PdfOut/"
-    
+
     payload = {
         'pos1': '1',
         'pos2': yesterday,
@@ -69,45 +96,46 @@ def send_yesterday_dgr_pdf(session):
         'pos9': '0',
         'pdfsub': ''
     }
-    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.scadasolution.co.in/scada/garden/reports/'
+    }
+    pdf_filename = f"DGR_Report_{yesterday}.pdf"
+
     try:
         print(f"📄 Fetching DGR PDF for date: {yesterday}...")
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.scadasolution.co.in/scada/garden/reports/'
-        }
-        
-        response = session.post(url, data=payload, headers=headers)
-        
-        if response.status_code == 200 and len(response.content) > 1000:
-            pdf_filename = f"DGR_Report_{yesterday}.pdf"
-            
-            with open(pdf_filename, "wb") as f:
-                f.write(response.content)
-            
-            telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
-            with open(pdf_filename, "rb") as pdf_file:
-                files = {"document": pdf_file}
-                data = {
-                    "chat_id": TELEGRAM_CHAT_ID,
-                    "caption": f"📄 <b>ALL-TURBINES Date Report ({yesterday})</b>",
-                    "parse_mode": "HTML"
-                }
-                res = requests.post(telegram_url, data=data, files=files)
-                
-                if res.status_code == 200:
-                    print(f"✅ Successfully sent DGR PDF for {yesterday} to Telegram!")
-                else:
-                    print(f"❌ Failed to send PDF to Telegram: {res.text}")
-            
-            if os.path.exists(pdf_filename):
-                os.remove(pdf_filename)
-        else:
-            print("❌ Failed to fetch PDF or empty response (Size too small or error).")
-            
+        response = session.post(url, data=payload, headers=headers, timeout=60)
+        content = response.content or b""
+
+        # A real PDF always starts with "%PDF" - an HTML error/login page does not
+        if response.status_code != 200 or b"%PDF" not in content[:1024]:
+            print(f"❌ PDF not ready / invalid response (HTTP {response.status_code}, {len(content)} bytes)")
+            return False
+
+        with open(pdf_filename, "wb") as f:
+            f.write(content)
+
+        telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+        with open(pdf_filename, "rb") as pdf_file:
+            files = {"document": pdf_file}
+            data = {
+                "chat_id": TELEGRAM_CHAT_ID,
+                "caption": f"📄 <b>ALL-TURBINES Date Report ({yesterday})</b>",
+                "parse_mode": "HTML"
+            }
+            res = requests.post(telegram_url, data=data, files=files, timeout=60)
+
+        if res.status_code == 200:
+            print(f"✅ Successfully sent DGR PDF for {yesterday} to Telegram!")
+            return True
+        print(f"❌ Failed to send PDF to Telegram: {res.text}")
+        return False
     except Exception as e:
         print(f"❌ Error while fetching/sending PDF: {e}")
+        return False
+    finally:
+        if os.path.exists(pdf_filename):
+            os.remove(pdf_filename)
 # ---------------------------------------------------------
 
 def normalize_status(raw_status, bg_color=""):
@@ -123,7 +151,7 @@ def normalize_status(raw_status, bg_color=""):
         return "Battery"
     elif "power" in s or "off" in s:
         return "Power Off"
-    elif "disp" in s or "connect" in s:
+    elif "disp" in s or ("connect" in s and "connectivity" not in s):
         return "Display Connected"
     elif "run" in s:
         return "Running"
@@ -201,12 +229,18 @@ try:
     # Time Calculation
     ist = pytz.timezone('Asia/Kolkata')
     now_ist = datetime.now(ist)
+    today_str = now_ist.strftime("%Y-%m-%d")
+    report_log = load_json_file(REPORT_LOG_FILE)
 
-    # ⏰ 1. PDF Report Logic: காலை 8 மணி என்றால் (மினிட்ஸ் 0 முதல் 15க்குள்) முகம் சுளிக்காமல் PDF போகும்
-    if now_ist.hour == 8 and now_ist.minute < 15:
-        print("⏰ Morning 8 AM window detected. Executing DGR PDF sending task FIRST...")
-        send_yesterday_dgr_pdf(session)
-        time.sleep(3) # PDF சம்மந்தப்பட்ட ரிக்வெஸ்ட் முடிந்து லோட் ஆக சிறிது அவகாசம்
+    # ⏰ 1. Yesterday's DGR PDF - MORNING ONLY, once per day.
+    #    First run between 8:00 AM and 11:59 AM IST (works even if GitHub starts late).
+    #    If it fails, the next morning run tries again.
+    if 8 <= now_ist.hour < 12 and report_log.get("pdf_date") != today_str:
+        print("⏰ Today's DGR PDF not sent yet. Sending now...")
+        if send_yesterday_dgr_pdf(session):
+            report_log["pdf_date"] = today_str
+            save_json_file(REPORT_LOG_FILE, report_log)
+        time.sleep(3)  # let the PDF request finish before Selenium continues
 
     print("3. Navigating to Parkview Page...")
     driver.get(SCADA_PARKVIEW_URL)
@@ -316,42 +350,50 @@ try:
     print("Detected Current Data:", current_data)
 
     # Previous State Reading
-    previous_states = {}
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r") as f:
-                loaded_data = json.load(f)
-                if isinstance(loaded_data, dict):
-                    previous_states = loaded_data
-        except Exception as read_err:
-            print("Fresh start:", read_err)
+    previous_states = load_json_file(STATE_FILE)
+    new_state = dict(current_data)
 
-    # State Change Check
-    state_changed = False
+    # ⚠️ 2. Status change -> separate message for EACH changed windmill only,
+    #       and only when the new status is Running / Power Off / Emergency
     if previous_states:
         for htsc, val in current_data.items():
             prev = previous_states.get(htsc)
-            prev_status = prev.get("status") if isinstance(prev, dict) else prev
-            if str(prev_status).lower() != str(val["status"]).lower():
-                state_changed = True
-                print(f"Status change detected for {htsc}: {prev_status} -> {val['status']}")
-                break
+            if not isinstance(prev, dict):
+                continue  # new windmill - just remember it
+            prev_status = str(prev.get("status", "-")).strip()
+            new_status = str(val["status"]).strip()
+
+            if new_status in ("", "-"):
+                new_state[htsc] = prev  # could not read it this run - keep last value
+                continue
+            if prev_status.lower() == new_status.lower():
+                continue
+
+            print(f"Status change detected for {htsc}: {prev_status} -> {new_status}")
+            if new_status.lower() not in ALERT_STATUSES:
+                print("   (not Running / Power Off / Emergency - no message)")
+                continue
+            if not send_telegram_alert(format_clean_message({htsc: val})):
+                new_state[htsc] = prev  # keep old, so next run re-sends this alert
     else:
-        state_changed = True
+        print("First run - saving state only.")
 
-    # Scheduled Check (8:00 AM & 6:00 PM IST)
-    is_scheduled_report = (now_ist.hour in [8, 18]) and (now_ist.minute < 15)
+    # 📊 3. Daily report - all windmills in ONE message, once at 8 AM and once at 6 PM
+    report_slot = None
+    if now_ist.hour >= 18 and report_log.get("evening_report") != today_str:
+        report_slot = "evening_report"
+    elif 8 <= now_ist.hour < 18 and report_log.get("morning_report") != today_str:
+        report_slot = "morning_report"
 
-    # Send Text Notification
-    if (state_changed or is_scheduled_report) and current_data:
-        full_message = format_clean_message(current_data)
-        print("Sending aggregated Telegram notification...")
-        send_telegram_alert(full_message)
+    if report_slot and current_data:
+        print(f"Sending {report_slot.replace('_', ' ')}...")
+        if send_telegram_alert(format_clean_message(current_data)):
+            report_log[report_slot] = today_str
+            save_json_file(REPORT_LOG_FILE, report_log)
 
     # Save current state
     if current_data:
-        with open(STATE_FILE, "w") as f:
-            json.dump(current_data, f, indent=4)
+        save_json_file(STATE_FILE, new_state)
 
     print("Monitor execution completed successfully.")
 
