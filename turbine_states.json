@@ -1,55 +1,11 @@
 {
-    "SF 151": {
-        "name": "SF 151",
-        "status": "Running",
-        "ws": "5.9",
-        "kw": "59.4",
-        "rrpm": "20.16",
-        "grpm": "1245.38",
-        "location": "Theni",
-        "htsc": "059224760060",
-        "order": 4
-    },
-    "SF 1078": {
-        "name": "SF 1078",
-        "status": "Running",
-        "ws": "3.8",
-        "kw": "17.7",
-        "rrpm": "20.32",
-        "grpm": "1247.83",
-        "location": "Palladam",
-        "htsc": "039224391941",
-        "order": 8
-    },
-    "SF 175": {
-        "name": "SF 175",
-        "status": "Running",
-        "ws": "6.3",
-        "kw": "124.3",
-        "rrpm": "20.16",
-        "grpm": "1248.72",
-        "location": "Theni",
-        "htsc": "059224760030",
-        "order": 1
-    },
-    "SF 042": {
-        "name": "SF 042",
-        "status": "Running",
-        "ws": "4.4",
-        "kw": "20.6",
-        "rrpm": "20.32",
-        "grpm": "1249.65",
-        "location": "Theni",
-        "htsc": "059224760045",
-        "order": 3
-    },
     "SF 101": {
         "name": "SF 101",
         "status": "Running",
-        "ws": "5.4",
-        "kw": "92.1",
-        "rrpm": "19.16",
-        "grpm": "1179.24",
+        "ws": "5.5",
+        "kw": "72.8",
+        "rrpm": "18.78",
+        "grpm": "1177.52",
         "location": "Theni",
         "htsc": "059224760031",
         "order": 2
@@ -57,40 +13,84 @@
     "SF 154": {
         "name": "SF 154",
         "status": "Running",
-        "ws": "4.7",
-        "kw": "71.6",
-        "rrpm": "20.41",
-        "grpm": "1250.01",
+        "ws": "4.2",
+        "kw": "58.8",
+        "rrpm": "20.22",
+        "grpm": "1251.76",
         "location": "Theni",
         "htsc": "059224760064",
         "order": 5
     },
+    "SF 175": {
+        "name": "SF 175",
+        "status": "Running",
+        "ws": "5.6",
+        "kw": "116.0",
+        "rrpm": "20.42",
+        "grpm": "1250.37",
+        "location": "Theni",
+        "htsc": "059224760030",
+        "order": 1
+    },
     "SF 523": {
         "name": "SF 523",
         "status": "Running",
-        "ws": "3.6",
-        "kw": "12.0",
-        "rrpm": "19.20",
-        "grpm": "1180.26",
+        "ws": "1.7",
+        "kw": "-1.1",
+        "rrpm": "0.00",
+        "grpm": "-0.02",
         "location": "Palladam",
         "htsc": "039224391808",
         "order": 7
     },
+    "SF 244": {
+        "name": "SF 244",
+        "status": "Running",
+        "ws": "5.0",
+        "kw": "78.2",
+        "rrpm": "19.02",
+        "grpm": "1177.65",
+        "location": "Palladam",
+        "htsc": "039224391807",
+        "order": 6
+    },
+    "SF 042": {
+        "name": "SF 042",
+        "status": "Running",
+        "ws": "5.5",
+        "kw": "67.0",
+        "rrpm": "20.08",
+        "grpm": "1248.21",
+        "location": "Theni",
+        "htsc": "059224760045",
+        "order": 3
+    },
     "SF 1019": {
         "name": "SF 1019",
         "status": "Running",
-        "ws": "6.8",
-        "kw": "143.1",
-        "rrpm": "20.24",
-        "grpm": "1248.07",
+        "ws": "5.1",
+        "kw": "36.9",
+        "rrpm": "20.33",
+        "grpm": "1249.53",
         "location": "Palladam",
         "htsc": "039224391943",
         "order": 10
     },
+    "SF 151": {
+        "name": "SF 151",
+        "status": "Running",
+        "ws": "5.5",
+        "kw": "184.6",
+        "rrpm": "20.48",
+        "grpm": "1262.35",
+        "location": "Theni",
+        "htsc": "059224760060",
+        "order": 4
+    },
     "SF 1023": {
         "name": "SF 1023",
         "status": "Emergency",
-        "ws": "6.5",
+        "ws": "5.3",
         "kw": "-0.3",
         "rrpm": "0.00",
         "grpm": "0.00",
@@ -98,15 +98,15 @@
         "htsc": "039224391942",
         "order": 9
     },
-    "SF 244": {
-        "name": "SF 244",
+    "SF 1078": {
+        "name": "SF 1078",
         "status": "Running",
-        "ws": "3.0",
-        "kw": "18.9",
-        "rrpm": "18.94",
-        "grpm": "1172.38",
+        "ws": "3.9",
+        "kw": "10.9",
+        "rrpm": "20.22",
+        "grpm": "1249.84",
         "location": "Palladam",
-        "htsc": "039224391807",
-        "order": 6
+        "htsc": "039224391941",
+        "order": 8
     }
 }
