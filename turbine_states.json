@@ -2,29 +2,18 @@
     "SF 042": {
         "name": "SF 042",
         "status": "Running",
-        "ws": "5.8",
-        "kw": "134.1",
-        "rrpm": "20.41",
-        "grpm": "1251.34",
+        "ws": "5.1",
+        "kw": "54.3",
+        "rrpm": "20.18",
+        "grpm": "1248.71",
         "location": "Theni",
         "htsc": "059224760045",
         "order": 3
     },
-    "SF 1019": {
-        "name": "SF 1019",
-        "status": "Running",
-        "ws": "5.0",
-        "kw": "15.8",
-        "rrpm": "20.17",
-        "grpm": "1248.71",
-        "location": "Palladam",
-        "htsc": "039224391943",
-        "order": 10
-    },
     "SF 1023": {
         "name": "SF 1023",
         "status": "Emergency",
-        "ws": "5.4",
+        "ws": "3.9",
         "kw": "-0.3",
         "rrpm": "0.00",
         "grpm": "0.00",
@@ -32,35 +21,13 @@
         "htsc": "039224391942",
         "order": 9
     },
-    "SF 154": {
-        "name": "SF 154",
-        "status": "Running",
-        "ws": "4.5",
-        "kw": "55.1",
-        "rrpm": "20.39",
-        "grpm": "1251.89",
-        "location": "Theni",
-        "htsc": "059224760064",
-        "order": 5
-    },
-    "SF 244": {
-        "name": "SF 244",
-        "status": "Running",
-        "ws": "5.9",
-        "kw": "84.2",
-        "rrpm": "19.18",
-        "grpm": "1177.72",
-        "location": "Palladam",
-        "htsc": "039224391807",
-        "order": 6
-    },
     "SF 523": {
         "name": "SF 523",
         "status": "Running",
-        "ws": "3.6",
-        "kw": "4.4",
-        "rrpm": "19.17",
-        "grpm": "1179.69",
+        "ws": "6.4",
+        "kw": "77.2",
+        "rrpm": "19.23",
+        "grpm": "1185.86",
         "location": "Palladam",
         "htsc": "039224391808",
         "order": 7
@@ -68,21 +35,43 @@
     "SF 175": {
         "name": "SF 175",
         "status": "Running",
-        "ws": "4.5",
-        "kw": "56.1",
-        "rrpm": "20.29",
-        "grpm": "1249.64",
+        "ws": "6.0",
+        "kw": "132.6",
+        "rrpm": "20.18",
+        "grpm": "1253.63",
         "location": "Theni",
         "htsc": "059224760030",
         "order": 1
     },
+    "SF 154": {
+        "name": "SF 154",
+        "status": "Running",
+        "ws": "4.9",
+        "kw": "40.6",
+        "rrpm": "20.18",
+        "grpm": "1250.66",
+        "location": "Theni",
+        "htsc": "059224760064",
+        "order": 5
+    },
+    "SF 1019": {
+        "name": "SF 1019",
+        "status": "Running",
+        "ws": "4.9",
+        "kw": "21.7",
+        "rrpm": "20.16",
+        "grpm": "1248.77",
+        "location": "Palladam",
+        "htsc": "039224391943",
+        "order": 10
+    },
     "SF 1078": {
         "name": "SF 1078",
         "status": "Running",
-        "ws": "5.9",
-        "kw": "67.6",
+        "ws": "4.2",
+        "kw": "0.4",
         "rrpm": "20.16",
-        "grpm": "1246.13",
+        "grpm": "1246.93",
         "location": "Palladam",
         "htsc": "039224391941",
         "order": 8
@@ -90,10 +79,10 @@
     "SF 151": {
         "name": "SF 151",
         "status": "Running",
-        "ws": "5.5",
-        "kw": "35.6",
-        "rrpm": "20.30",
-        "grpm": "1243.17",
+        "ws": "6.0",
+        "kw": "112.9",
+        "rrpm": "20.16",
+        "grpm": "1249.98",
         "location": "Theni",
         "htsc": "059224760060",
         "order": 4
@@ -101,12 +90,23 @@
     "SF 101": {
         "name": "SF 101",
         "status": "Running",
-        "ws": "6.0",
-        "kw": "115.0",
-        "rrpm": "19.20",
-        "grpm": "1184.08",
+        "ws": "4.8",
+        "kw": "78.8",
+        "rrpm": "19.00",
+        "grpm": "1179.43",
         "location": "Theni",
         "htsc": "059224760031",
         "order": 2
+    },
+    "SF 244": {
+        "name": "SF 244",
+        "status": "Running",
+        "ws": "3.6",
+        "kw": "29.3",
+        "rrpm": "19.01",
+        "grpm": "1173.16",
+        "location": "Palladam",
+        "htsc": "039224391807",
+        "order": 6
     }
 }
