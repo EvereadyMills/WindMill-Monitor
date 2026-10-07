@@ -1,44 +1,22 @@
 {
-    "SF 244": {
-        "name": "SF 244",
+    "SF 523": {
+        "name": "SF 523",
         "status": "Running",
-        "ws": "2.2",
-        "kw": "-5.6",
-        "rrpm": "18.67",
-        "grpm": "1155.08",
+        "ws": "4.2",
+        "kw": "63.5",
+        "rrpm": "19.01",
+        "grpm": "1185.38",
         "location": "Palladam",
-        "htsc": "039224391807",
-        "order": 6
-    },
-    "SF 1078": {
-        "name": "SF 1078",
-        "status": "Running",
-        "ws": "3.2",
-        "kw": "17.2",
-        "rrpm": "20.16",
-        "grpm": "1250.72",
-        "location": "Palladam",
-        "htsc": "039224391941",
-        "order": 8
-    },
-    "SF 154": {
-        "name": "SF 154",
-        "status": "Running",
-        "ws": "2.5",
-        "kw": "-2.0",
-        "rrpm": "0.09",
-        "grpm": "7.46",
-        "location": "Theni",
-        "htsc": "059224760064",
-        "order": 5
+        "htsc": "039224391808",
+        "order": 7
     },
     "SF 1023": {
         "name": "SF 1023",
         "status": "Running",
-        "ws": "3.8",
-        "kw": "22.1",
-        "rrpm": "20.32",
-        "grpm": "1250.65",
+        "ws": "3.3",
+        "kw": "-1.1",
+        "rrpm": "18.45",
+        "grpm": "1146.72",
         "location": "Palladam",
         "htsc": "039224391942",
         "order": 9
@@ -46,40 +24,40 @@
     "SF 151": {
         "name": "SF 151",
         "status": "Running",
-        "ws": "2.5",
+        "ws": "2.9",
         "kw": "-1.3",
-        "rrpm": "0.16",
-        "grpm": "4.73",
+        "rrpm": "0.06",
+        "grpm": "1.33",
         "location": "Theni",
         "htsc": "059224760060",
         "order": 4
     },
-    "SF 523": {
-        "name": "SF 523",
+    "SF 244": {
+        "name": "SF 244",
         "status": "Running",
-        "ws": "1.9",
-        "kw": "-8.4",
-        "rrpm": "18.85",
-        "grpm": "1157.77",
+        "ws": "2.6",
+        "kw": "-0.2",
+        "rrpm": "18.98",
+        "grpm": "1170.64",
         "location": "Palladam",
-        "htsc": "039224391808",
-        "order": 7
+        "htsc": "039224391807",
+        "order": 6
     },
-    "SF 042": {
-        "name": "SF 042",
+    "SF 154": {
+        "name": "SF 154",
         "status": "Running",
-        "ws": "2.4",
-        "kw": "-1.7",
-        "rrpm": "16.79",
-        "grpm": "1035.27",
+        "ws": "2.7",
+        "kw": "-1.3",
+        "rrpm": "19.30",
+        "grpm": "1203.06",
         "location": "Theni",
-        "htsc": "059224760045",
-        "order": 3
+        "htsc": "059224760064",
+        "order": 5
     },
     "SF 175": {
         "name": "SF 175",
         "status": "Running",
-        "ws": "2.1",
+        "ws": "2.7",
         "kw": "-0.8",
         "rrpm": "0.00",
         "grpm": "-0.09",
@@ -90,10 +68,10 @@
     "SF 1019": {
         "name": "SF 1019",
         "status": "Running",
-        "ws": "4.6",
-        "kw": "15.8",
-        "rrpm": "20.32",
-        "grpm": "1249.64",
+        "ws": "3.8",
+        "kw": "-1.1",
+        "rrpm": "18.89",
+        "grpm": "1168.93",
         "location": "Palladam",
         "htsc": "039224391943",
         "order": 10
@@ -101,12 +79,34 @@
     "SF 101": {
         "name": "SF 101",
         "status": "Running",
-        "ws": "2.1",
-        "kw": "-1.3",
-        "rrpm": "0.15",
-        "grpm": "9.34",
+        "ws": "2.2",
+        "kw": "-1.4",
+        "rrpm": "0.07",
+        "grpm": "3.75",
         "location": "Theni",
         "htsc": "059224760031",
         "order": 2
+    },
+    "SF 1078": {
+        "name": "SF 1078",
+        "status": "Running",
+        "ws": "3.6",
+        "kw": "0.2",
+        "rrpm": "19.85",
+        "grpm": "1225.20",
+        "location": "Palladam",
+        "htsc": "039224391941",
+        "order": 8
+    },
+    "SF 042": {
+        "name": "SF 042",
+        "status": "Running",
+        "ws": "2.3",
+        "kw": "-0.4",
+        "rrpm": "15.73",
+        "grpm": "972.65",
+        "location": "Theni",
+        "htsc": "059224760045",
+        "order": 3
     }
 }
