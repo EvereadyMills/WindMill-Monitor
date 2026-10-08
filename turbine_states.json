@@ -2,13 +2,57 @@
     "SF 1078": {
         "name": "SF 1078",
         "status": "Running",
-        "ws": "3.6",
-        "kw": "2.2",
+        "ws": "4.7",
+        "kw": "53.1",
         "rrpm": "20.16",
-        "grpm": "1248.05",
+        "grpm": "1248.62",
         "location": "Palladam",
         "htsc": "039224391941",
         "order": 8
+    },
+    "SF 175": {
+        "name": "SF 175",
+        "status": "Running",
+        "ws": "2.4",
+        "kw": "-1.7",
+        "rrpm": "17.36",
+        "grpm": "1074.51",
+        "location": "Theni",
+        "htsc": "059224760030",
+        "order": 1
+    },
+    "SF 1023": {
+        "name": "SF 1023",
+        "status": "Running",
+        "ws": "2.8",
+        "kw": "0.4",
+        "rrpm": "18.88",
+        "grpm": "1167.20",
+        "location": "Palladam",
+        "htsc": "039224391942",
+        "order": 9
+    },
+    "SF 101": {
+        "name": "SF 101",
+        "status": "Running",
+        "ws": "5.3",
+        "kw": "66.6",
+        "rrpm": "19.00",
+        "grpm": "1178.34",
+        "location": "Theni",
+        "htsc": "059224760031",
+        "order": 2
+    },
+    "SF 042": {
+        "name": "SF 042",
+        "status": "Running",
+        "ws": "4.2",
+        "kw": "34.4",
+        "rrpm": "20.41",
+        "grpm": "1250.59",
+        "location": "Theni",
+        "htsc": "059224760045",
+        "order": 3
     },
     "SF 154": {
         "name": "SF 154",
@@ -21,79 +65,13 @@
         "htsc": "059224760064",
         "order": 5
     },
-    "SF 523": {
-        "name": "SF 523",
-        "status": "Running",
-        "ws": "9.9",
-        "kw": "595.1",
-        "rrpm": "26.23",
-        "grpm": "1629.67",
-        "location": "Palladam",
-        "htsc": "039224391808",
-        "order": 7
-    },
-    "SF 175": {
-        "name": "SF 175",
-        "status": "Running",
-        "ws": "2.8",
-        "kw": "9.6",
-        "rrpm": "20.29",
-        "grpm": "1251.37",
-        "location": "Theni",
-        "htsc": "059224760030",
-        "order": 1
-    },
-    "SF 1023": {
-        "name": "SF 1023",
-        "status": "Running",
-        "ws": "3.2",
-        "kw": "0.9",
-        "rrpm": "20.16",
-        "grpm": "1248.11",
-        "location": "Palladam",
-        "htsc": "039224391942",
-        "order": 9
-    },
-    "SF 042": {
-        "name": "SF 042",
-        "status": "Running",
-        "ws": "3.9",
-        "kw": "-1.1",
-        "rrpm": "19.90",
-        "grpm": "1233.31",
-        "location": "Theni",
-        "htsc": "059224760045",
-        "order": 3
-    },
-    "SF 101": {
-        "name": "SF 101",
-        "status": "Running",
-        "ws": "4.5",
-        "kw": "63.0",
-        "rrpm": "19.14",
-        "grpm": "1177.34",
-        "location": "Theni",
-        "htsc": "059224760031",
-        "order": 2
-    },
-    "SF 151": {
-        "name": "SF 151",
-        "status": "Running",
-        "ws": "3.5",
-        "kw": "0.6",
-        "rrpm": "19.84",
-        "grpm": "1225.20",
-        "location": "Theni",
-        "htsc": "059224760060",
-        "order": 4
-    },
     "SF 1019": {
         "name": "SF 1019",
         "status": "Running",
-        "ws": "3.8",
-        "kw": "0.8",
-        "rrpm": "19.95",
-        "grpm": "1235.39",
+        "ws": "4.4",
+        "kw": "4.0",
+        "rrpm": "20.20",
+        "grpm": "1248.05",
         "location": "Palladam",
         "htsc": "039224391943",
         "order": 10
@@ -108,5 +86,27 @@
         "location": "Palladam",
         "htsc": "039224391807",
         "order": 6
+    },
+    "SF 523": {
+        "name": "SF 523",
+        "status": "Running",
+        "ws": "5.8",
+        "kw": "96.3",
+        "rrpm": "19.22",
+        "grpm": "1188.05",
+        "location": "Palladam",
+        "htsc": "039224391808",
+        "order": 7
+    },
+    "SF 151": {
+        "name": "SF 151",
+        "status": "Running",
+        "ws": "3.0",
+        "kw": "0.5",
+        "rrpm": "19.75",
+        "grpm": "1217.44",
+        "location": "Theni",
+        "htsc": "059224760060",
+        "order": 4
     }
 }
